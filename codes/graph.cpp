@@ -6,9 +6,11 @@
 #include <fstream>
 
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/graphviz.hpp>
 
 using tr_vertex_t = ADDRINT;
+using tr_vertices_t = std::vector<tr_vertex_t>;
 using tr_graph_t =  boost::adjacency_list<boost::listS,
                                           boost::vecS,
                                           boost::bidirectionalS,
@@ -19,7 +21,14 @@ using tr_edge_desc_t = tr_graph_t::edge_descriptor;
 using tr_vertex_iter_t = tr_graph_t::vertex_iterator;
 using tr_edge_iter_t = tr_graph_t::edge_iterator;
 
-using bb_vertex_t = std::vector<ADDRINT>;
+//using bb_vertex_t = std::vector<ADDRINT>;
+using bb_vertex_t = std::pair<int32_t, tr_vertices_t>;
+enum
+{
+  NODE_ORDER = 0,
+  NODE_ADDRESSES = 1
+};
+
 using bb_graph_t = boost::adjacency_list<boost::listS,
                                          boost::vecS,
                                          boost::bidirectionalS,
@@ -141,8 +150,10 @@ static auto compress_graph_from_pivot_vertex (bb_vertex_desc_t pivot_vertex) -> 
 
   boost::remove_out_edge_if(pivot_vertex, [](bb_edge_desc_t edge_desc) { return true; }, internal_bb_graph);
 
-  internal_bb_graph[pivot_vertex].insert(
-        std::end(internal_bb_graph[pivot_vertex]), std::begin(internal_bb_graph[next_vertex]), std::end(internal_bb_graph[next_vertex])
+  std::get<NODE_ADDRESSES>(internal_bb_graph[pivot_vertex]).insert(
+        std::end(std::get<NODE_ADDRESSES>(internal_bb_graph[pivot_vertex])),
+        std::begin(std::get<NODE_ADDRESSES>(internal_bb_graph[next_vertex])),
+        std::end(std::get<NODE_ADDRESSES>(internal_bb_graph[next_vertex]))
         );
 
   auto last_out_edge_iter = bb_graph_t::out_edge_iterator();
@@ -175,6 +186,56 @@ static auto get_tr_vertex_desc(tr_vertex_t addr)  -> tr_vertex_desc_t
 }
 
 
+//static auto linear_node_order = int32_t{0};
+struct node_numbering_visitor : public boost::default_bfs_visitor
+{
+  std::vector<bb_vertex_desc_t> linear_visited_bbs;
+
+  void discover_vertex(bb_vertex_desc_t vertex_desc, const bb_graph_t& graph)
+  {
+    if (std::get<NODE_ORDER>(graph[vertex_desc]) == -1) {
+      linear_visited_bbs.push_back(vertex_desc);
+    }
+    return;
+  }
+};
+
+
+static auto numbering_bb_graph () -> void
+{
+  auto begin_bb_iter = bb_vertex_iter_t{};
+  auto end_bb_iter = bb_vertex_iter_t{};
+
+  auto start_bb_desc = bb_vertex_desc_t{};
+
+  assert(boost::num_vertices(internal_bb_graph) > 0);
+
+  std::tie(begin_bb_iter, end_bb_iter) = boost::vertices(internal_bb_graph);
+
+  for (auto bb_iter = begin_bb_iter; bb_iter != end_bb_iter; ++bb_iter) {
+    if (boost::in_degree(*bb_iter, internal_bb_graph) == 0) {
+      std::get<NODE_ORDER>(internal_bb_graph[*bb_iter]) = 0;
+      start_bb_desc = *bb_iter;
+    }
+    else if (boost::out_degree(*bb_iter, internal_bb_graph) == 0) {
+      std::get<NODE_ORDER>(internal_bb_graph[*bb_iter]) = boost::num_vertices(internal_bb_graph) - 1;
+    }
+  }
+
+  auto visitor = node_numbering_visitor();
+  visitor.linear_visited_bbs.clear();
+  boost::breadth_first_search(internal_bb_graph, start_bb_desc, boost::visitor(visitor));
+
+  auto linear_order = 0;
+  for (auto& bb : visitor.linear_visited_bbs) {
+    std::get<NODE_ORDER>(internal_bb_graph[bb]) = linear_order;
+    ++linear_order;
+  }
+
+  return;
+}
+
+
 static auto construct_bb_graph () -> void
 {
   auto first_vertex_iter = tr_vertex_iter_t();
@@ -182,7 +243,7 @@ static auto construct_bb_graph () -> void
 
   std::tie(first_vertex_iter, last_vertex_iter) = boost::vertices(internal_graph);
   for (auto vertex_iter = first_vertex_iter; vertex_iter != last_vertex_iter; ++vertex_iter) {
-    boost::add_vertex(bb_vertex_t{internal_graph[*vertex_iter]}, internal_bb_graph);
+    boost::add_vertex(bb_vertex_t(-1, tr_vertices_t{internal_graph[*vertex_iter]}), internal_bb_graph);
   }
 
   auto first_bb_vertex_iter = bb_vertex_iter_t();
@@ -193,8 +254,8 @@ static auto construct_bb_graph () -> void
   for (auto src_bb_vertex_iter = first_bb_vertex_iter; src_bb_vertex_iter != last_bb_vertex_iter; ++src_bb_vertex_iter)
     for (auto dst_bb_vertex_iter = first_bb_vertex_iter; dst_bb_vertex_iter != last_bb_vertex_iter; ++dst_bb_vertex_iter) {
 
-      auto src_tr_vertex_desc = get_tr_vertex_desc(internal_bb_graph[*src_bb_vertex_iter].front());
-      auto dst_tr_vertex_desc = get_tr_vertex_desc(internal_bb_graph[*dst_bb_vertex_iter].front());
+      auto src_tr_vertex_desc = get_tr_vertex_desc(std::get<NODE_ADDRESSES>(internal_bb_graph[*src_bb_vertex_iter]).front());
+      auto dst_tr_vertex_desc = get_tr_vertex_desc(std::get<NODE_ADDRESSES>(internal_bb_graph[*dst_bb_vertex_iter]).front());
 
       if (std::get<1>(boost::edge(src_tr_vertex_desc, dst_tr_vertex_desc, internal_graph)) &&
           !std::get<1>(boost::edge(*src_bb_vertex_iter, *dst_bb_vertex_iter, internal_bb_graph))) {
@@ -212,9 +273,13 @@ static auto construct_bb_graph () -> void
   }
   while (true);
 
+  numbering_bb_graph();
 
   return;
 }
+
+
+
 
 
 /*====================================================================================================================*/
@@ -250,47 +315,6 @@ auto cap_save_trace_to_dot_file (const std::string& filename) noexcept -> void
   return;
 }
 
-template<uint32_t align>
-auto print_ins (std::ostream& label, std::string str1, std::string str2) -> void
-{
-//  tfm::format(label, "%-12s %-35s\\l", str1, str2);
-  return;
-}
-
-template<>
-auto print_ins<15> (std::ostream& label, std::string str1, std::string str2) -> void
-{
-  tfm::format(label, "%-12s %-15s\\l", str1, str2);
-  return;
-}
-
-template<>
-auto print_ins<20> (std::ostream& label, std::string str1, std::string str2) -> void
-{
-  tfm::format(label, "%-12s %-20s\\l", str1, str2);
-  return;
-}
-
-template<>
-auto print_ins<25> (std::ostream& label, std::string str1, std::string str2) -> void
-{
-  tfm::format(label, "%-12s %-25s\\l", str1, str2);
-  return;
-}
-
-template<>
-auto print_ins<30> (std::ostream& label, std::string str1, std::string str2) -> void
-{
-  tfm::format(label, "%-12s %-30s\\l", str1, str2);
-  return;
-}
-
-template<>
-auto print_ins<35> (std::ostream& label, std::string str1, std::string str2) -> void
-{
-  tfm::format(label, "%-12s %-35s\\l", str1, str2);
-  return;
-}
 
 auto cap_save_basic_block_trace_to_dot_file (const std::string& filename) noexcept -> void
 {
@@ -298,15 +322,15 @@ auto cap_save_basic_block_trace_to_dot_file (const std::string& filename) noexce
 
   auto write_vertex = [](std::ostream& label, bb_vertex_desc_t vertex_desc) -> void {
 
-    auto ins_disas_name_sizes = std::vector<uint32_t>(internal_bb_graph[vertex_desc].size());
-    std::transform(std::begin(internal_bb_graph[vertex_desc]), std::end(internal_bb_graph[vertex_desc]),
-                   std::begin(ins_disas_name_sizes), [](ADDRINT addr)
-    {
-      return (cached_ins_at_addr[addr]->disassemble).length();
-    });
+//    auto ins_disas_name_sizes = std::vector<uint32_t>(internal_bb_graph[vertex_desc].size());
+//    std::transform(std::begin(internal_bb_graph[vertex_desc]), std::end(internal_bb_graph[vertex_desc]),
+//                   std::begin(ins_disas_name_sizes), [](ADDRINT addr)
+//    {
+//      return (cached_ins_at_addr[addr]->disassemble).length();
+//    });
 
-    auto name_max_size = *std::max_element(std::begin(ins_disas_name_sizes), std::end(ins_disas_name_sizes));
-    tfm::printfln("max size = %d", name_max_size);
+//    auto name_max_size = *std::max_element(std::begin(ins_disas_name_sizes), std::end(ins_disas_name_sizes));
+//    tfm::printfln("max size = %d", name_max_size);
 
     if (boost::in_degree(vertex_desc, internal_bb_graph) == 0) {
       tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=cornflowerblue,label=\"");
@@ -322,7 +346,7 @@ auto cap_save_basic_block_trace_to_dot_file (const std::string& filename) noexce
     }
     else tfm::format(label, "[shape=box,style=rounded,label=\"");
 
-    for (const auto& addr : internal_bb_graph[vertex_desc]) {
+    for (const auto& addr : std::get<NODE_ADDRESSES>(internal_bb_graph[vertex_desc])) {
       /*if (std::addressof(addr) == std::addressof(internal_bb_graph[vertex_desc].back())) {
         tfm::format(label, "%-12s %-s", StringFromAddrint(addr), cached_ins_at_addr[addr]->disassemble);
       }
