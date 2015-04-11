@@ -4,9 +4,11 @@
 struct _1_sort__opaque_Node_1;
 struct _IO_FILE;
 struct timeval;
-extern float strtof(char const   *str , char const   *endptr ) ;
 extern void signal(int sig , void *func ) ;
+extern float strtof(char const   *str , char const   *endptr ) ;
+typedef unsigned long size_t;
 typedef struct _IO_FILE FILE;
+extern  __attribute__((__nothrow__)) int ( __attribute__((__nonnull__(1), __leaf__)) atoi)(char const   *__nptr )  __attribute__((__pure__)) ;
 extern double strtod(char const   *str , char const   *endptr ) ;
 extern int fclose(void *stream ) ;
 extern void *fopen(char const   *filename , char const   *mode ) ;
@@ -25,10 +27,10 @@ struct _1_sort__opaque_Node_1 {
 struct _1_sort__opaque_Node_1 *_1_sort__opaque_list2_1  =    (struct _1_sort__opaque_Node_1 *)0;
 extern int gettimeofday(struct timeval *tv , void *tz  , ...) ;
 extern int printf(char const   * __restrict  __format  , ...) ;
-int main(void) ;
-extern unsigned long strlen(char const   *s ) ;
-void sort(unsigned char *mlist , unsigned int size ) ;
+int main(int argc , char **argv ) ;
 void megaInit(void) ;
+extern unsigned long strlen(char const   *s ) ;
+void sort(int *mlist , int size ) ;
 extern long strtol(char const   *str , char const   *endptr , int base ) ;
 struct _1_sort__opaque_Node_1 *_1_sort__opaque_list1_1  =    (struct _1_sort__opaque_Node_1 *)0;
 extern unsigned long strnlen(char const   *s , unsigned long maxlen ) ;
@@ -37,13 +39,13 @@ struct timeval {
    long tv_sec ;
    long tv_usec ;
 };
-extern void *malloc(unsigned long size ) ;
+extern  __attribute__((__nothrow__)) void *( __attribute__((__leaf__)) malloc)(size_t __size )  __attribute__((__malloc__)) ;
 extern int scanf(char const   *format  , ...) ;
-void sort(unsigned char *mlist , unsigned int size ) 
+void sort(int *mlist , int size ) 
 { 
-  unsigned int i ;
-  unsigned int j ;
-  unsigned char tmp ;
+  int i ;
+  int j ;
+  int tmp ;
   int i6 ;
   int r7 ;
   struct _1_sort__opaque_Node_1 *p8 ;
@@ -84,25 +86,25 @@ void sort(unsigned char *mlist , unsigned int size )
     return;
     break;
     case 10: ;
-    if (i < size - 1U) {
+    if (i < size - 1) {
       _2_sort_next = 8 + (_1_sort__opaque_list1_1 == (struct _1_sort__opaque_Node_1 *)0UL);
     } else {
       _2_sort_next = (unsigned long )(_1_sort__opaque_list1_1 != _1_sort__opaque_list2_1) + (unsigned long )(_1_sort__opaque_list1_1 != _1_sort__opaque_list2_1);
     }
     break;
     case 12: 
-    i = 0U;
+    i = 0;
     _2_sort_next = 10 - ! (_1_sort__opaque_list2_1 != (struct _1_sort__opaque_Node_1 *)0UL);
     break;
     case 4: ;
-    if ((int )*(mlist + j) > (int )*(mlist + (j + 1U))) {
+    if (*(mlist + j) > *(mlist + (j + 1))) {
       _2_sort_next = ((unsigned long )(_1_sort__opaque_list2_1 != (struct _1_sort__opaque_Node_1 *)0UL) - (unsigned long )(_1_sort__opaque_list2_1 == (struct _1_sort__opaque_Node_1 *)0UL)) + ((unsigned long )(! ((unsigned long )(_1_sort__opaque_list1_1 != _1_sort__opaque_list2_1))) + 1);
     } else {
       _2_sort_next = (unsigned long )(! ((unsigned long )(_1_sort__opaque_list1_1 != _1_sort__opaque_list2_1))) + 1;
     }
     break;
     case 14: 
-    *(mlist + j) = *(mlist + (j + 1U));
+    *(mlist + j) = *(mlist + (j + 1));
     _2_sort_next = _1_sort__opaque_list1_1 != (struct _1_sort__opaque_Node_1 *)0UL ? 13 : 5;
     break;
     case 2: 
@@ -110,15 +112,15 @@ void sort(unsigned char *mlist , unsigned int size )
     _2_sort_next = 6 - (_1_sort__opaque_list1_1 == (struct _1_sort__opaque_Node_1 *)0UL);
     break;
     case 13: 
-    *(mlist + (j + 1U)) = tmp;
+    *(mlist + (j + 1)) = tmp;
     _2_sort_next = ((unsigned long )(_1_sort__opaque_list1_1 == (struct _1_sort__opaque_Node_1 *)0UL) + (unsigned long )(_1_sort__opaque_list1_1 == _1_sort__opaque_list2_1)) + 1;
     break;
     case 8: 
-    j = 0U;
+    j = 0;
     _2_sort_next = _1_sort__opaque_list1_1 != _1_sort__opaque_list2_1 ? 2 : 6;
     break;
     case 6: ;
-    if (j < (size - 1U) - i) {
+    if (j < (size - 1) - i) {
       _2_sort_next = 4 + ((_1_sort__opaque_list1_1 != _1_sort__opaque_list2_1) + (_1_sort__opaque_list1_1 != _1_sort__opaque_list2_1));
     } else {
       _2_sort_next = (unsigned long )(! ((unsigned long )(_1_sort__opaque_list2_1 == (struct _1_sort__opaque_Node_1 *)0UL)));
@@ -136,33 +138,41 @@ void sort(unsigned char *mlist , unsigned int size )
   }
 }
 }
-int main(void) 
-{ 
-  unsigned char read_list[5] ;
-  unsigned int i ;
-
-  {
-  megaInit();
-  read_list[0] = (unsigned char)2;
-  read_list[1] = (unsigned char)5;
-  read_list[2] = (unsigned char)3;
-  read_list[3] = (unsigned char)6;
-  read_list[4] = (unsigned char)1;
-  sort(read_list, 5U);
-  i = 0U;
-  while (i < 5U) {
-    printf((char const   */* __restrict  */)"%d", (int )read_list[i]);
-    i ++;
-  }
-  printf((char const   */* __restrict  */)"\n");
-  return (0);
-}
-}
 void megaInit(void) 
 { 
 
 
   {
 
+}
+}
+int main(int argc , char **argv ) 
+{ 
+  int size_of_list ;
+  int tmp ;
+  int *list ;
+  void *tmp___0 ;
+  int i ;
+  int i___0 ;
+
+  {
+  megaInit();
+  tmp = atoi((char const   *)*(argv + 1));
+  size_of_list = tmp;
+  tmp___0 = malloc((unsigned long )size_of_list * sizeof(int ));
+  list = (int *)tmp___0;
+  i = 0;
+  while (i < size_of_list) {
+    *(list + i) = atoi((char const   *)*(argv + (2 + i)));
+    i ++;
+  }
+  sort(list, size_of_list);
+  i___0 = 0;
+  while (i___0 < size_of_list) {
+    printf((char const   */* __restrict  */)"%d", *(list + i___0));
+    i___0 ++;
+  }
+  printf((char const   */* __restrict  */)"\n");
+  return (0);
 }
 }

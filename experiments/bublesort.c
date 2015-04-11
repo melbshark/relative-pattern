@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
-void sort (unsigned char* mlist, unsigned int size)
+void sort (int* mlist, int size)
 {
-  for (unsigned int i = 0; i < (size - 1); ++i)
-    for (unsigned int j = 0; j < size - 1 - i; ++j) {
+  for (int i = 0; i < (size - 1); ++i)
+    for (int j = 0; j < size - 1 - i; ++j) {
       if (mlist[j] > mlist[j+1]) {
-        unsigned char tmp = mlist[j];
+        int tmp = mlist[j];
         mlist[j] = mlist[j+1];
         mlist[j+1] = tmp;
       }
@@ -15,18 +16,27 @@ void sort (unsigned char* mlist, unsigned int size)
   return;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-  unsigned char read_list[5] = {2, 5, 3, 6, 1};
+  /* unsigned char read_list[5] = {2, 5, 3, 6, 1}; */
+  /* unsigned char read_list[6] = {7, 2, 5, 3, 6, 1}; */
   /* unsigned char read_list[5] = {2, 5, 7, 6, 1}; */
   /* unsigned char read_list[5] = {2, 5, 8, 6, 1}; */
   /* unsigned char read_list[5] = {7, 5, 8, 6, 1}; */
   /* unsigned char read_list[6] = {7, 5, 8, 6, 1, 10}; */
   /* unsigned char read_list[7] = {7, 5, 8, 6, 1, 10, 2}; */
-  sort(read_list, 5);
 
-  for (unsigned int i = 0; i < 5; ++i) {
-    printf("%d",read_list[i]);
+  int size_of_list = atoi(argv[1]);
+
+  int* list = (int*)malloc(size_of_list * sizeof(int));
+  for (int i = 0; i < size_of_list; ++i) {
+    list[i] = atoi(argv[2 + i]);
+  }
+
+  sort(list, size_of_list);
+
+  for (int i = 0; i < size_of_list; ++i) {
+    printf("%d", list[i]);
   }
   printf("\n");
 
