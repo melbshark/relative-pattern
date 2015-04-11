@@ -4,10 +4,17 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/graphviz.hpp>
+//#include <boost/graph/graph_utility.hpp>
+
+//#include <boost/graph/adj_list_serialize.hpp>
+//#include <boost/archive/binary_iarchive.hpp>
+//#include <boost/archive/binary_oarchive.hpp>
+
 
 using tr_vertex_t = ADDRINT;
 using tr_vertices_t = std::vector<tr_vertex_t>;
@@ -25,8 +32,8 @@ using tr_edge_iter_t = tr_graph_t::edge_iterator;
 using bb_vertex_t = std::pair<int32_t, tr_vertices_t>;
 enum
 {
-  NODE_ORDER = 0,
-  NODE_ADDRESSES = 1
+  BB_ORDER = 0,
+  BB_ADDRESSES = 1
 };
 
 using bb_graph_t = boost::adjacency_list<boost::listS,
@@ -116,7 +123,7 @@ static auto find_pivot_vertex () -> bb_vertex_desc_t
 
         if ((boost::in_degree(next_vertex, internal_bb_graph) == 1) && !is_loopback_vertex(next_vertex)) {
           if ((in_degree == 0) || (in_degree >= 2)) {
-            tfm::printfln("pivot found");
+//            tfm::printfln("pivot found");
             return true;
           }
           else {
@@ -125,7 +132,7 @@ static auto find_pivot_vertex () -> bb_vertex_desc_t
 
             auto prev_vertex = boost::source(*in_edge_iter, internal_bb_graph);
             if (boost::out_degree(prev_vertex, internal_bb_graph) >= 2)
-              tfm::printfln("pivot found s");
+//              tfm::printfln("pivot found s");
             return is_loopback_vertex(prev_vertex) || (boost::out_degree(prev_vertex, internal_bb_graph) >= 2);
           }
         }
@@ -150,10 +157,10 @@ static auto compress_graph_from_pivot_vertex (bb_vertex_desc_t pivot_vertex) -> 
 
   boost::remove_out_edge_if(pivot_vertex, [](bb_edge_desc_t edge_desc) { return true; }, internal_bb_graph);
 
-  std::get<NODE_ADDRESSES>(internal_bb_graph[pivot_vertex]).insert(
-        std::end(std::get<NODE_ADDRESSES>(internal_bb_graph[pivot_vertex])),
-        std::begin(std::get<NODE_ADDRESSES>(internal_bb_graph[next_vertex])),
-        std::end(std::get<NODE_ADDRESSES>(internal_bb_graph[next_vertex]))
+  std::get<BB_ADDRESSES>(internal_bb_graph[pivot_vertex]).insert(
+        std::end(std::get<BB_ADDRESSES>(internal_bb_graph[pivot_vertex])),
+        std::begin(std::get<BB_ADDRESSES>(internal_bb_graph[next_vertex])),
+        std::end(std::get<BB_ADDRESSES>(internal_bb_graph[next_vertex]))
         );
 
   auto last_out_edge_iter = bb_graph_t::out_edge_iterator();
@@ -167,7 +174,7 @@ static auto compress_graph_from_pivot_vertex (bb_vertex_desc_t pivot_vertex) -> 
   boost::remove_out_edge_if(next_vertex, [](bb_edge_desc_t edge_desc) { return true; }, internal_bb_graph);
 
   boost::remove_vertex(next_vertex, internal_bb_graph);
-  tfm::printfln("compress");
+//  tfm::printfln("compress");
 
   return;
 }
@@ -187,50 +194,87 @@ static auto get_tr_vertex_desc(tr_vertex_t addr)  -> tr_vertex_desc_t
 
 
 //static auto linear_node_order = int32_t{0};
+static auto linear_visited_bbs = std::vector<bb_vertex_desc_t>{};
 struct node_numbering_visitor : public boost::default_bfs_visitor
 {
-  std::vector<bb_vertex_desc_t> linear_visited_bbs;
+//  static std::vector<bb_vertex_desc_t> linear_visited_bbs;
 
   void discover_vertex(bb_vertex_desc_t vertex_desc, const bb_graph_t& graph)
   {
-    if (std::get<NODE_ORDER>(graph[vertex_desc]) == -1) {
-      linear_visited_bbs.push_back(vertex_desc);
-    }
+//    if (std::get<NODE_ORDER>(graph[vertex_desc]) == -1) {
+//      linear_visited_bbs.push_back(vertex_desc);
+//    }
+    linear_visited_bbs.push_back(vertex_desc);
+//    tfm::printfln("blah");
     return;
   }
 };
 
 
+static auto current_order = int32_t{0};
+static auto numbering_from_vertex (bb_vertex_desc_t current_vertex) -> void
+{
+  std::get<BB_ORDER>(internal_bb_graph[current_vertex]) = current_order;
+  ++current_order;
+
+  auto first_out_edge_iter = bb_graph_t::out_edge_iterator{};
+  auto last_out_edge_iter = bb_graph_t::out_edge_iterator{};
+  std::tie(first_out_edge_iter, last_out_edge_iter) = boost::out_edges(current_vertex, internal_bb_graph);
+
+  auto unnumbered_vertices = std::vector<bb_vertex_desc_t>{};
+  for (auto out_edge_iter = first_out_edge_iter; out_edge_iter != last_out_edge_iter; ++out_edge_iter) {
+    auto next_vertex = boost::target(*out_edge_iter, internal_bb_graph);
+    if (std::get<BB_ORDER>(internal_bb_graph[next_vertex]) == -1) {
+      unnumbered_vertices.push_back(next_vertex);
+    }
+  }
+
+  std::stable_sort(std::begin(unnumbered_vertices), std::end(unnumbered_vertices), [](bb_vertex_desc_t va, bb_vertex_desc_t vb)
+  {
+    return (std::get<BB_ADDRESSES>(internal_bb_graph[va]).front() < std::get<BB_ADDRESSES>(internal_bb_graph[vb]).front());
+  });
+
+  for (auto next_vertex_desc : unnumbered_vertices) {
+    numbering_from_vertex(next_vertex_desc);
+  }
+
+  return;
+}
+
+
 static auto numbering_bb_graph () -> void
 {
-  auto begin_bb_iter = bb_vertex_iter_t{};
-  auto end_bb_iter = bb_vertex_iter_t{};
+  auto first_bb_iter = bb_vertex_iter_t{};
+  auto last_bb_iter = bb_vertex_iter_t{};
+  std::tie(first_bb_iter, last_bb_iter) = boost::vertices(internal_bb_graph);
 
-  auto start_bb_desc = bb_vertex_desc_t{};
+  auto bb_iter = std::find_if(first_bb_iter, last_bb_iter, [](bb_vertex_desc_t bb_vertex_desc) {
+    return (boost::in_degree(bb_vertex_desc, internal_bb_graph) == 0);
+  });
+  assert(bb_iter != last_bb_iter);
 
-  assert(boost::num_vertices(internal_bb_graph) > 0);
+  auto first_bb_vertex_desc = *bb_iter;
+  numbering_from_vertex(first_bb_vertex_desc);
 
-  std::tie(begin_bb_iter, end_bb_iter) = boost::vertices(internal_bb_graph);
+//  auto begin_bb_iter = bb_vertex_iter_t{};
+//  auto end_bb_iter = bb_vertex_iter_t{};
 
-  for (auto bb_iter = begin_bb_iter; bb_iter != end_bb_iter; ++bb_iter) {
-    if (boost::in_degree(*bb_iter, internal_bb_graph) == 0) {
-      std::get<NODE_ORDER>(internal_bb_graph[*bb_iter]) = 0;
-      start_bb_desc = *bb_iter;
-    }
-    else if (boost::out_degree(*bb_iter, internal_bb_graph) == 0) {
-      std::get<NODE_ORDER>(internal_bb_graph[*bb_iter]) = boost::num_vertices(internal_bb_graph) - 1;
-    }
-  }
+//  auto start_bb_desc = bb_vertex_desc_t{};
 
-  auto visitor = node_numbering_visitor();
-  visitor.linear_visited_bbs.clear();
-  boost::breadth_first_search(internal_bb_graph, start_bb_desc, boost::visitor(visitor));
+//  assert(boost::num_vertices(internal_bb_graph) > 0);
 
-  auto linear_order = 0;
-  for (auto& bb : visitor.linear_visited_bbs) {
-    std::get<NODE_ORDER>(internal_bb_graph[bb]) = linear_order;
-    ++linear_order;
-  }
+//  std::tie(begin_bb_iter, end_bb_iter) = boost::vertices(internal_bb_graph);
+
+//  auto visitor = node_numbering_visitor();
+//  linear_visited_bbs.clear();
+//  boost::breadth_first_search(internal_bb_graph, start_bb_desc, boost::visitor(visitor));
+
+//  auto linear_order = 0;
+//  tfm::printfln("size of graph %d", linear_visited_bbs.size());
+//  for (auto& bb : linear_visited_bbs) {
+//    std::get<BB_ORDER>(internal_bb_graph[bb]) = linear_order;
+//    ++linear_order;
+//  }
 
   return;
 }
@@ -254,8 +298,8 @@ static auto construct_bb_graph () -> void
   for (auto src_bb_vertex_iter = first_bb_vertex_iter; src_bb_vertex_iter != last_bb_vertex_iter; ++src_bb_vertex_iter)
     for (auto dst_bb_vertex_iter = first_bb_vertex_iter; dst_bb_vertex_iter != last_bb_vertex_iter; ++dst_bb_vertex_iter) {
 
-      auto src_tr_vertex_desc = get_tr_vertex_desc(std::get<NODE_ADDRESSES>(internal_bb_graph[*src_bb_vertex_iter]).front());
-      auto dst_tr_vertex_desc = get_tr_vertex_desc(std::get<NODE_ADDRESSES>(internal_bb_graph[*dst_bb_vertex_iter]).front());
+      auto src_tr_vertex_desc = get_tr_vertex_desc(std::get<BB_ADDRESSES>(internal_bb_graph[*src_bb_vertex_iter]).front());
+      auto dst_tr_vertex_desc = get_tr_vertex_desc(std::get<BB_ADDRESSES>(internal_bb_graph[*dst_bb_vertex_iter]).front());
 
       if (std::get<1>(boost::edge(src_tr_vertex_desc, dst_tr_vertex_desc, internal_graph)) &&
           !std::get<1>(boost::edge(*src_bb_vertex_iter, *dst_bb_vertex_iter, internal_bb_graph))) {
@@ -279,7 +323,61 @@ static auto construct_bb_graph () -> void
 }
 
 
+auto construct_bb_trace () -> std::vector<bb_vertex_desc_t>
+{
+  auto bb_trace = std::vector<bb_vertex_desc_t>{};
 
+  auto ins_iter = std::begin(trace);
+  auto last_ins_iter = std::end(trace);
+
+  auto first_bb_iter = bb_vertex_iter_t{};
+  auto last_bb_iter = bb_vertex_iter_t{};
+  std::tie(first_bb_iter, last_bb_iter) = boost::vertices(internal_bb_graph);
+
+  auto bb_iter = std::find_if(first_bb_iter, last_bb_iter, [](bb_vertex_desc_t bb_vertex_desc) {
+    return (boost::in_degree(bb_vertex_desc, internal_bb_graph) == 0);
+  });
+  assert(bb_iter != last_bb_iter);
+
+  auto bb_vertex_desc = *bb_iter;
+
+  while (ins_iter != last_ins_iter) {
+    for (auto & ins_addr : std::get<BB_ADDRESSES>(internal_bb_graph[bb_vertex_desc])) {
+      assert(ins_addr == std::get<INS_ADDRESS>(*ins_iter));
+      ++ins_iter;
+    }
+
+    bb_trace.push_back(bb_vertex_desc);
+
+    if (ins_iter != last_ins_iter) {
+      auto first_out_edge_iter = bb_graph_t::out_edge_iterator{};
+      auto last_out_edge_iter = bb_graph_t::out_edge_iterator{};
+      std::tie(first_out_edge_iter, last_out_edge_iter) = boost::out_edges(bb_vertex_desc, internal_bb_graph);
+
+      auto next_out_edge_iter = std::find_if(first_out_edge_iter, last_out_edge_iter, [&](bb_edge_desc_t bb_edge_desc) {
+        auto target_vertex_desc = boost::target(bb_edge_desc, internal_bb_graph);
+        return (std::get<INS_ADDRESS>(*ins_iter) == std::get<BB_ADDRESSES>(internal_bb_graph[target_vertex_desc]).front());
+      });
+
+      assert(next_out_edge_iter != last_out_edge_iter);
+      bb_vertex_desc = boost::target(*next_out_edge_iter, internal_bb_graph);
+    }
+  }
+
+  return bb_trace;
+}
+
+
+//static auto serialize_bb_graph (const std::string& filename) -> void
+//{
+//  std::ofstream output_file(filename.c_str(), std::ofstream::out | std::ofstream::binary);
+//  if (output_file.is_open()) {
+//    boost::archive::binary_oarchive boa(output_file);
+//    boa << internal_bb_graph;
+//    output_file.close();
+//  }
+//  return;
+//}
 
 
 /*====================================================================================================================*/
@@ -322,16 +420,6 @@ auto cap_save_basic_block_trace_to_dot_file (const std::string& filename) noexce
 
   auto write_vertex = [](std::ostream& label, bb_vertex_desc_t vertex_desc) -> void {
 
-//    auto ins_disas_name_sizes = std::vector<uint32_t>(internal_bb_graph[vertex_desc].size());
-//    std::transform(std::begin(internal_bb_graph[vertex_desc]), std::end(internal_bb_graph[vertex_desc]),
-//                   std::begin(ins_disas_name_sizes), [](ADDRINT addr)
-//    {
-//      return (cached_ins_at_addr[addr]->disassemble).length();
-//    });
-
-//    auto name_max_size = *std::max_element(std::begin(ins_disas_name_sizes), std::end(ins_disas_name_sizes));
-//    tfm::printfln("max size = %d", name_max_size);
-
     if (boost::in_degree(vertex_desc, internal_bb_graph) == 0) {
       tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=cornflowerblue,label=\"");
     }
@@ -346,7 +434,8 @@ auto cap_save_basic_block_trace_to_dot_file (const std::string& filename) noexce
     }
     else tfm::format(label, "[shape=box,style=rounded,label=\"");
 
-    for (const auto& addr : std::get<NODE_ADDRESSES>(internal_bb_graph[vertex_desc])) {
+    tfm::format(label, "%d\n", std::get<BB_ORDER>(internal_bb_graph[vertex_desc]));
+    for (const auto& addr : std::get<BB_ADDRESSES>(internal_bb_graph[vertex_desc])) {
       /*if (std::addressof(addr) == std::addressof(internal_bb_graph[vertex_desc].back())) {
         tfm::format(label, "%-12s %-s", StringFromAddrint(addr), cached_ins_at_addr[addr]->disassemble);
       }
@@ -372,8 +461,31 @@ auto cap_save_basic_block_trace_to_dot_file (const std::string& filename) noexce
     output_file.close();
   }
   else {
-    tfm::printfln("cannot save to file %s", filename);
+    tfm::printfln("cannot save bb-graph to file %s", filename);
   }
 
   return;
 }
+
+
+auto cap_save_basic_block_trace_to_file (const std::string& filename) noexcept -> void
+{
+  ofstream output_file(filename.c_str(), std::ofstream::out | std::ofstream::trunc);
+  if (output_file.is_open()) {
+
+    auto bb_trace = construct_bb_trace();
+    for (auto & bb_vertex_desc : bb_trace) {
+      tfm::format(output_file, "%d\n", std::get<BB_ORDER>(internal_bb_graph[bb_vertex_desc]));
+    }
+//    tfm::format(output_file, "\n");
+
+    output_file.close();
+  }
+  else {
+    tfm::printfln("cannot save bb-trace to file %s", filename);
+  }
+
+  return;
+}
+
+
