@@ -1,0 +1,25 @@
+O-LLVM compiler
+
+clang bublesort.c -o bublesort_ollvm -m32 -mllvm -fla
+
+./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort_ollvm.opt" -out "bublesort_ollvm.trace" -dot "bublesort_ollvm.dot" -dot-bb "bublesort_ollvm_bb.dot" -trace-bb "bublesort_ollvm_bb.trace1" -- ./bublesort_ollvm 5 3 1 7 6 5
+
+./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort_ollvm.opt" -out "bublesort_ollvm.trace" -dot "bublesort_ollvm.dot" -dot-bb "bublesort_ollvm_bb.dot" -trace-bb "bublesort_ollvm_bb.trace2" -- ./bublesort_ollvm 6 9 3 1 7 6 5
+
+Tigress compiler
+
+tigress --Transform=InitOpaque --Functions=sort --Transform=Flatten --Functions=sort --FlattenDispatch=switch --out=./bublesort_obf.c bublesort.c
+
+./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort_obf.opt" -out "bublesort_obf.trace" -dot "bublesort_obf.dot" -dot-bb "bublesort_obf_bb.dot" -trace-bb "bublesort_obf_bb.trace1" -- ./bublesort_obf 5 3 1 7 6 5
+
+./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort_obf.opt" -out "bublesort_obf.trace" -dot "bublesort_obf.dot" -dot-bb "bublesort_obf_bb.dot" -trace-bb "bublesort_obf_bb.trace2" -- ./bublesort_obf 6 9 3 1 7 6 5
+
+Normal
+
+./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort.opt" -out "bublesort.trace" -dot "bublesort.dot" -dot-bb "bublesort_bb.dot" -trace-bb "bublesort_bb.trace1" -- ./bublesort 5 3 1 7 6 5
+
+./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort.opt" -out "bublesort.trace" -dot "bublesort.dot" -dot-bb "bublesort_bb.dot" -trace-bb "bublesort_bb.trace2" -- ./bublesort 6 9 3 1 7 6 5
+
+
+
+
