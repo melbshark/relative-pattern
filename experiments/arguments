@@ -14,12 +14,16 @@ tigress --Transform=InitOpaque --Functions=sort --Transform=Flatten --Functions=
 
 ./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort_obf.opt" -out "bublesort_obf.trace" -dot "bublesort_obf.dot" -dot-bb "bublesort_obf_bb.dot" -trace-bb "bublesort_obf_bb.trace2" -- ./bublesort_obf 6 9 3 1 7 6 5
 
+./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort_recursive_obf.opt" -out "bublesort_recursive_obf.trace" -dot "bublesort_recursive_obf.dot" -dot-bb "bublesort_recursive_obf_bb.dot" -trace-bb "bublesort_recursive_obf_bb1.trace" -- ./bublesort_recursive_obf 5 3 1 7 6 5
+
+./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort_recursive_obf.opt" -out "bublesort_recursive_obf.trace" -dot "bublesort_recursive_obf.dot" -dot-bb "bublesort_recursive_obf_bb.dot" -trace-bb "bublesort_recursive_obf_bb2.trace" -- ./bublesort_recursive_obf 6 9 3 1 7 6 5
+
 Normal
 
 ./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort.opt" -out "bublesort.trace" -dot "bublesort.dot" -dot-bb "bublesort_bb.dot" -trace-bb "bublesort_bb.trace1" -- ./bublesort 5 3 1 7 6 5
 
 ./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort.opt" -out "bublesort.trace" -dot "bublesort.dot" -dot-bb "bublesort_bb.dot" -trace-bb "bublesort_bb.trace2" -- ./bublesort 6 9 3 1 7 6 5
 
+./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort_recursive.opt" -out "bublesort_recursive.trace" -dot "bublesort_recursive.dot" -dot-bb "bublesort_recursive_bb.dot" -trace-bb "bublesort_recursive_bb.trace" -- ./bublesort_recursive 5 3 1 7 6 5
 
-
-
+./pin67257/ia32/bin/pinbin -t build/vtrace.pin -opt "bublesort_recursive.opt" -out "bublesort_recursive.trace" -dot "bublesort_recursive.dot" -dot-bb "bublesort_recursive_bb.dot" -trace-bb "bublesort_recursive_bb2.trace" -- ./bublesort_recursive 6 9 3 1 7 6 5
