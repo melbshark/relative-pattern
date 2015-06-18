@@ -1,2 +1,2 @@
 # relative-pattern
-A hobby project to ~~de-obfuscating~~ leak information from diversified codes
+A tool for recovering program control flow graph from obfuscated binaries
