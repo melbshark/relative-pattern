@@ -18,8 +18,6 @@ if(PIN_FOUND)
     if(PIN_INCLUDE_DIRS)
       include_directories(${PIN_INCLUDE_DIRS})
     endif(PIN_INCLUDE_DIRS)
-
-    # include_directories(AFTER ~/.local/include) 
     
     if(PIN_LIBRARY_DIRS)
       link_directories(${PIN_LIBRARY_DIRS})
@@ -32,8 +30,6 @@ if(PIN_FOUND)
       SUFFIX ".pin"
       COMPILE_DEFINITIONS "${PIN_DEFINITIONS}"
       LINK_FLAGS "${PIN_LINKER_FLAGS}"
-# enable the following for 32bit compilation
-      LINK_FLAGS "${PIN_LINKER_FLAGS} -v -m32"
     )
 
     foreach(_entry ${ARGN})
@@ -53,9 +49,7 @@ if(PIN_FOUND)
       COMPILE_FLAGS ${PIN_CXX_FLAGS}
     )
     
-    target_link_libraries(${pin_tool_name} ${PINTOOL_LINK_LIBS} pin xed dwarf elf dl protobuf)
-#  target_link_libraries(${pin_tool_name} ${PINTOOL_LINK_LIBS} pin xed dwarf dl protobuf)
-#    target_link_libraries(${pin_tool_name} ${PINTOOL_LINK_LIBS} pin xed dwarf elf dl)
+    target_link_libraries(${pin_tool_name} ${PINTOOL_LINK_LIBS} pin xed dwarf elf dl)
 
   endmacro(ADD_PINTOOL pin_tool_name)
 
