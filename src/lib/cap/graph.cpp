@@ -11,12 +11,6 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/graphviz.hpp>
-//#include <boost/graph/graph_utility.hpp>
-
-//#include <boost/graph/adj_list_serialize.hpp>
-//#include <boost/archive/binary_iarchive.hpp>
-//#include <boost/archive/binary_oarchive.hpp>
-
 
 using tr_vertex_t   = ADDRINT;
 using tr_vertices_t = std::vector<tr_vertex_t>;
@@ -641,18 +635,6 @@ static auto construct_bbss_graph () -> void
 
   return;
 }
-
-// come back later!!!
-//static auto serialize_bb_graph (const std::string& filename) -> void
-//{
-//  std::ofstream output_file(filename.c_str(), std::ofstream::out | std::ofstream::binary);
-//  if (output_file.is_open()) {
-//    boost::archive::binary_oarchive boa(output_file);
-//    boa << internal_bb_graph;
-//    output_file.close();
-//  }
-//  return;
-//}
 
 
 /*====================================================================================================================*/

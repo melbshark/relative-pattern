@@ -70,9 +70,6 @@ auto save_in_simple_format (std::ofstream& output_stream) -> void
   std::for_each(trace.begin(), trace.end(), [&output_stream](decltype(trace)::const_reference ins)
   {
     auto ins_addr = std::get<INS_ADDRESS>(ins);
-//    tfm::format(output_stream, "%-16s   %-40s   %-25s   %-80s\n",
-//                StringFromAddrint(ins_addr), inst_at_addr[ins_addr]->disassemble,
-//                inst_at_addr[ins_addr]->including_routine, inst_at_addr[ins_addr]->including_image);
     tfm::format(output_stream, "%-12s %-40s", normalize_hex_string(StringFromAddrint(ins_addr)),
                 cached_ins_at_addr[ins_addr]->disassemble);
 
@@ -220,7 +217,6 @@ static auto add_trace_instruction (parser::trace_t& trace, const dyn_ins_t& ins)
     p_ins_addr->set_typeid_(parser::BIT32);
     p_ins_addr->set_value_32(ins_address);
     p_ins_addr->clear_value_64();
-//    tfm::printfln("save instruction at %s", StringFromAddrint(ins_address));
     break;
 
   case 8:
@@ -229,25 +225,6 @@ static auto add_trace_instruction (parser::trace_t& trace, const dyn_ins_t& ins)
     p_ins_addr->clear_value_32();
     break;
   }
-
-//  switch (trace.header().address_size()) {
-//  case parser::BIT32:
-//    p_ins_addr->set_typeid_(parser::BIT32);
-//    p_ins_addr->set_value_32(ins_address);
-//    p_ins_addr->clear_value_64();
-//    break;
-
-//  case parser::BIT64:
-//    p_ins_addr->set_typeid_(parser::BIT64);
-//    p_ins_addr->set_value_64(ins_address);
-//    p_ins_addr->clear_value_32();
-//    break;
-
-//  default:
-//    assert((trace.header().address_size() == parser::BIT32) ||
-//           (trace.header().address_size() == parser::BIT64));
-//    break;
-//  }
 
   enum REG_T { REG_READ = 0, REG_WRITE = 1 };
   auto add_registers = [&p_instruction, &ins, &p_static_ins](REG_T reg_type) -> void
@@ -428,8 +405,6 @@ static auto add_trace_instruction (parser::trace_t& trace, const dyn_ins_t& ins)
       sys_read_concrete_info->set_count_effective(sys_read_info.read_length);
       sys_read_concrete_info->set_buffer_data(sys_read_info.buffer.get(), sys_read_info.read_length);
 
-//      tfm::printfln("read/effective length %d/%d", sys_read_info.buffer_length, sys_read_info.read_length);
-
       break;
     }
 
@@ -484,8 +459,6 @@ static auto add_trace_instruction (parser::trace_t& trace, const dyn_ins_t& ins)
 
     auto call_concrete_info = concrete_info->mutable_call();
     call_concrete_info->set_func_name(call_real_info.called_fun_name);
-
-//    tfm::printfln("called function: %s", call_real_info.called_fun_name);
 
     call_concrete_info->set_is_traced(call_real_info.is_traced);
 
@@ -560,11 +533,7 @@ auto save_in_protobuf_format (std::ofstream& output_stream) -> void
 
     // add a new instruction
     add_trace_instruction(trace_saver, ins);
-
-//    tfm::printfln("%s", cached_ins_at_addr[ins_address]->disassemble);
   });
-
-//  assert(trace_saver.IsInitialized());
 
   // save trace to file, close it, and free internal objects of protobuf
   trace_saver.SerializeToOstream(&output_stream);
