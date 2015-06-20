@@ -49,10 +49,14 @@ class instruction
   instruction(const INS& ins);
 };
 
-using p_instruction_t             = std::shared_ptr<instruction>;
-using p_instructions_t            = std::vector<p_instruction_t>;
-using map_address_instruction_t   = std::map<ADDRINT, p_instruction_t>;
-using p_map_address_instruction_t = std::shared_ptr<map_address_instruction_t>;
+typedef std::shared_ptr<instruction> p_instruction_t;
+typedef std::vector<p_instruction_t> p_instructions_t;
+typedef std::map<ADDRINT, p_instruction_t> map_address_instruction_t;
+typedef std::shared_ptr<map_address_instruction_t> p_map_address_instruction_t;
+//using p_instruction_t             = std::shared_ptr<instruction>;
+//using p_instructions_t            = std::vector<p_instruction_t>;
+//using map_address_instruction_t   = std::map<ADDRINT, p_instruction_t>;
+//using p_map_address_instruction_t = std::shared_ptr<map_address_instruction_t>;
 
 #endif
 

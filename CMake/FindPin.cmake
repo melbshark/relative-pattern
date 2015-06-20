@@ -32,6 +32,7 @@ else(EXISTS "${TMP_CURRENT_LIST_DIR}/UsePin.cmake")
   set(PIN_USE_FILE UsePin.cmake)
 endif(EXISTS "${TMP_CURRENT_LIST_DIR}/UsePin.cmake")
 
+
 execute_process(
   COMMAND uname -m
   OUTPUT_VARIABLE PIN_CPU_ARCH
@@ -39,9 +40,6 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
   ERROR_QUIET
 )
-
-# enable the following for 32bit compilation
-set(PIN_CPU_ARCH "x86")
 
 if("${PIN_CPU_ARCH}" STREQUAL "x86_64")
   set(PIN_CPU_ARCH "ia32e")
@@ -63,6 +61,9 @@ elseif("${PIN_CPU_ARCH}" STREQUAL "ia64")
   set(PIN_CPU_ARCH_LONG "ia62")
 endif("${PIN_CPU_ARCH}" STREQUAL "x86_64")
 
+set(PIN_CPU_ARCH "ia32")
+set(PIN_CPU_ARCH_LONG "ia32")
+
 message(STATUS "PIN_CPU_ARCH: ${PIN_CPU_ARCH}")
 
 find_path(PIN_ROOT_DIR
@@ -82,30 +83,28 @@ endif(NOT PIN_ROOT_DIR)
 message(STATUS "PIN_ROOT_DIR: ${PIN_ROOT_DIR}")
 
 set(PIN_INCLUDE_DIRS
-  ${PIN_ROOT_DIR}/extras/xed2-${PIN_CPU_ARCH_LONG}/include
-#  ${PIN_ROOT_DIR}/extras/xed-${PIN_CPU_ARCH_LONG}/include
+  ${PIN_ROOT_DIR}/extras/xed-${PIN_CPU_ARCH_LONG}/include
   ${PIN_ROOT_DIR}/source/include/pin
   ${PIN_ROOT_DIR}/source/include/pin/gen
   ${PIN_ROOT_DIR}/extras/components/include
 )
 
 set(PIN_LIBRARY_DIRS
-  ${PIN_ROOT_DIR}/extras/xed2-${PIN_CPU_ARCH_LONG}/lib
-#  ${PIN_ROOT_DIR}/extras/xed-${PIN_CPU_ARCH_LONG}/lib
-  ${PIN_ROOT_DIR}/${PIN_CPU_ARCH_LONG}/lib 
+  ${PIN_ROOT_DIR}/extras/xed-${PIN_CPU_ARCH_LONG}/lib
+  ${PIN_ROOT_DIR}/${PIN_CPU_ARCH_LONG}/lib
   ${PIN_ROOT_DIR}/${PIN_CPU_ARCH_LONG}/lib-ext
 )
 
 set(PIN_VERSION_SCRIPT ${PIN_ROOT_DIR}/source/include/pin/pintool.ver)
 
 #set(PIN_COMPILE_FLAGS "-Wall -Werror -Wno-unknown-pragmas -O3 -fomit-frame-pointer -fno-strict-aliasing -DBOOST_LOG_DYN_LINK")
-set(PIN_COMPILE_FLAGS "-Wall -Wno-unknown-pragmas -O3 -fomit-frame-pointer -fno-strict-aliasing -DBOOST_LOG_DYN_LINK")
+set(PIN_COMPILE_FLAGS "-Wall -Werror -Wno-unknown-pragmas -O3 -fomit-frame-pointer -fno-strict-aliasing")
 set(PIN_C_FLAGS "${PIN_COMPILE_FLAGS}")
-# enable the following  for 32 bit compilation
-set(PIN_CXX_FLAGS "${PIN_COMPILE_FLAGS} -MMD -m32")
 #set(PIN_CXX_FLAGS "${PIN_COMPILE_FLAGS} -MMD")
-#set(PIN_LINKER_FLAGS "-Wl,--hash-style=sysv -shared -Wl,-Bsymbolic -Wl,--version-script=${PIN_VERSION_SCRIPT}")
-set(PIN_LINKER_FLAGS "-Wl,--hash-style=sysv -Wl,-Bsymbolic -Wl,--version-script=${PIN_VERSION_SCRIPT}")
+#set(PIN_CXX_FLAGS "${PIN_COMPILE_FLAGS} -MMD -std=c++11")
+set(PIN_CXX_FLAGS "${PIN_COMPILE_FLAGS} -MMD -std=c++11 -DENABLE_FAST_ROLLBACK -DNDEBUG")
+set(PIN_LINKER_FLAGS "-Wl,--hash-style=sysv -shared -Wl,-Bsymbolic -Wl,--version-script=${PIN_VERSION_SCRIPT}")
+# set(PIN_LINKER_FLAGS "-Wl,--hash-style=sysv -Wl,-Bsymbolic -Wl,--version-script=${PIN_VERSION_SCRIPT}")
 
 set(PIN_DEFINITIONS "")
 list(APPEND PIN_DEFINITIONS TARGET_LINUX BIGARRAY_MULTIPLIER=1 USING_XED)
@@ -119,4 +118,3 @@ elseif("${PIN_CPU_ARCH}" STREQUAL "ipf")
 endif("${PIN_CPU_ARCH}" STREQUAL "ia32e")
 
 set(PIN_FOUND true)
-

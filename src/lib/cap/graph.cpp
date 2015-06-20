@@ -12,52 +12,54 @@
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/graphviz.hpp>
 
-using tr_vertex_t   = ADDRINT;
-using tr_vertices_t = std::vector<tr_vertex_t>;
-using tr_graph_t    =  boost::adjacency_list<boost::listS,
+#include <pin.H>
+
+typedef ADDRINT tr_vertex_t;
+typedef std::vector<tr_vertex_t> tr_vertices_t;
+typedef boost::adjacency_list<boost::listS,
                                              boost::vecS,
                                              boost::bidirectionalS,
-                                             tr_vertex_t>;
+                                             tr_vertex_t> tr_graph_t;
 
-using tr_vertex_desc_t = tr_graph_t::vertex_descriptor;
-using tr_edge_desc_t   = tr_graph_t::edge_descriptor;
-using tr_vertex_iter_t = tr_graph_t::vertex_iterator;
-using tr_edge_iter_t   = tr_graph_t::edge_iterator;
+typedef tr_graph_t::vertex_descriptor tr_vertex_desc_t;
+typedef tr_graph_t::edge_descriptor tr_edge_desc_t;
+typedef tr_graph_t::vertex_iterator tr_vertex_iter_t;
+typedef tr_graph_t::edge_iterator tr_edge_iter_t;
 
 //using bb_vertex_t = std::vector<ADDRINT>;
-using bb_vertex_t = std::pair<int32_t, tr_vertices_t>;
+typedef std::pair<int32_t, tr_vertices_t> bb_vertex_t;
 enum
 {
   BB_ORDER = 0,
   BB_ADDRESSES = 1
 };
 
-using bb_graph_t = boost::adjacency_list<boost::listS,
+typedef boost::adjacency_list<boost::listS,
                                          boost::vecS,
                                          boost::bidirectionalS,
-                                         bb_vertex_t>;
+                                         bb_vertex_t> bb_graph_t;
 
-using bb_vertex_desc_t = bb_graph_t::vertex_descriptor;
-using bb_edge_desc_t   = bb_graph_t::edge_descriptor;
-using bb_vertex_iter_t = bb_graph_t::vertex_iterator;
-using bb_edge_iter_t   = bb_graph_t::edge_iterator;
+typedef bb_graph_t::vertex_descriptor bb_vertex_desc_t;
+typedef bb_graph_t::edge_descriptor bb_edge_desc_t;
+typedef bb_graph_t::vertex_iterator bb_vertex_iter_t;
+typedef bb_graph_t::edge_iterator bb_edge_iter_t;
 
-using bbs_vertex_t = std::vector<int32_t>;
-using bbs_graph_t = boost::adjacency_list<boost::listS,
-                                          boost::vecS,
-                                          boost::bidirectionalS,
-                                          bbs_vertex_t>;
-using bbs_vertex_desc_t = bbs_graph_t::vertex_descriptor;
-using bbs_edge_desc_t = bbs_graph_t::edge_descriptor;
-using bbs_vertex_iter_t = bb_graph_t::vertex_iterator;
-using bb_edge_iter_t = bb_graph_t::edge_iterator;
+typedef std::vector<int32_t> bbs_vertex_t;
+typedef boost::adjacency_list<boost::listS,
+                              boost::vecS,
+                              boost::bidirectionalS,
+                              bbs_vertex_t> bbs_graph_t;
+typedef bbs_graph_t::vertex_descriptor bbs_vertex_desc_t;
+typedef bbs_graph_t::edge_descriptor bbs_edge_desc_t;
+typedef bb_graph_t::vertex_iterator bbs_vertex_iter_t;
+typedef bb_graph_t::edge_iterator bb_edge_iter_t;
 
-using bbss_vertex_t = std::vector<bbs_vertex_t>;
-using bbss_graph_t = boost::adjacency_list<boost::listS, boost::vecS, boost::bidirectionalS, bbss_vertex_t>;
-using bbss_vertex_desc_t = bbss_graph_t::vertex_descriptor;
-using bbss_edge_desc_t = bbss_graph_t::edge_descriptor;
-using bbss_vertex_iter_t = bbss_graph_t::vertex_iterator;
-using bbss_edge_iter_t = bbss_graph_t::edge_iterator;
+typedef std::vector<bbs_vertex_t> bbss_vertex_t;
+typedef boost::adjacency_list<boost::listS, boost::vecS, boost::bidirectionalS, bbss_vertex_t> bbss_graph_t;
+typedef bbss_graph_t::vertex_descriptor bbss_vertex_desc_t;
+typedef bbss_graph_t::edge_descriptor bbss_edge_desc_t;
+typedef bbss_graph_t::vertex_iterator bbss_vertex_iter_t;
+typedef bbss_graph_t::edge_iterator bbss_edge_iter_t;
 
 static tr_graph_t internal_graph;
 static bb_graph_t internal_bb_graph;
@@ -641,7 +643,7 @@ static auto construct_bbss_graph () -> void
 /*                                                     exported functions                                             */
 /*====================================================================================================================*/
 
-auto cap_save_trace_to_dot_file (const std::string& filename) noexcept -> void
+auto cap_save_trace_to_dot_file (const std::string& filename) -> void
 {
   auto write_vertex = [](std::ostream& label, tr_vertex_desc_t vertex_desc) -> void {
     tfm::format(label, "[label=\"%s:%s\"]", normalize_hex_string(StringFromAddrint(internal_graph[vertex_desc])),
@@ -675,7 +677,7 @@ auto cap_save_trace_to_dot_file (const std::string& filename) noexcept -> void
 }
 
 
-auto cap_save_basic_block_trace_to_dot_file (const std::string& filename) noexcept -> void
+auto cap_save_basic_block_trace_to_dot_file (const std::string& filename)  -> void
 {
   auto write_vertex = [](std::ostream& label, bb_vertex_desc_t vertex_desc) -> void {
 
@@ -732,7 +734,7 @@ auto cap_save_basic_block_trace_to_dot_file (const std::string& filename) noexce
 }
 
 
-auto cap_save_basic_block_trace_to_file (const std::string& filename) noexcept -> void
+auto cap_save_basic_block_trace_to_file (const std::string& filename) -> void
 {
   auto is_first_bbs = [](bbs_vertex_desc_t vertex_desc) -> bool {
     auto vertex_value = internal_bbs_graph[vertex_desc];

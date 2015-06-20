@@ -547,15 +547,15 @@ auto save_in_simple_format (std::ofstream& output_stream) -> void
 /*                                                     exported functions                                             */
 /*====================================================================================================================*/
 
-auto cap_save_trace_to_file (const std::string& filename, bool simple_or_proto) noexcept -> void
+auto cap_save_trace_to_file (const std::string& filename, bool simple_or_proto) -> void
 {
   std::ofstream trace_file(filename.c_str(),
                            std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
 
   if (trace_file.is_open()) {
-    if (simple_or_proto) save_in_simple_format(trace_file);
-    else save_in_protobuf_format(trace_file);
-//   save_in_simple_format(trace_file);
+//    if (simple_or_proto) save_in_simple_format(trace_file);
+//    else save_in_protobuf_format(trace_file);
+   save_in_simple_format(trace_file);
 //   save_in_protobuf_format(trace_file);
 
     trace_file.close();
@@ -564,20 +564,5 @@ auto cap_save_trace_to_file (const std::string& filename, bool simple_or_proto) 
     tfm::printfln("cannot save to file %", filename);
   }
 
-  return;
-}
-
-
-auto cap_load_trace_from_file (std::string& filename) noexcept -> void
-{
-  std::ifstream trace_file(filename.c_str(), std::ifstream::in | std::ifstream::binary);
-
-  auto trace_loader = parser::trace_t();
-  if (trace_loader.ParseFromIstream(&trace_file)) {
-    auto trace_header = trace_loader.header();
-  }
-
-  trace_file.close();
-  google::protobuf::ShutdownProtobufLibrary();
   return;
 }
