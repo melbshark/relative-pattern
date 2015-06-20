@@ -66,6 +66,7 @@ using patch_point_memory_t   = std::pair<patch_point_t, memory_patch_value_t>;
 // using auto here is not supported by C++11 standard (why?)
 dyn_inss_t trace                             = dyn_inss_t();
 map_address_instruction_t cached_ins_at_addr = map_address_instruction_t();
+std::vector<uint32_t> virtual_trace          = std::vector<uint32_t>{};
 
 static auto state_of_thread                    = std::map<THREADID, tracing_state_t>();
 static auto ins_at_thread                      = std::map<THREADID, dyn_ins_t>();

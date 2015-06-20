@@ -27,6 +27,7 @@ auto cap_load_trace_from_file               (const std::string& filename)       
 auto cap_save_trace_to_dot_file             (const std::string& filename)                             -> void;
 auto cap_save_basic_block_trace_to_dot_file (const std::string& filename)                             -> void;
 auto cap_save_basic_block_trace_to_file     (const std::string& filename)                             -> void;
+auto cap_save_virtual_trace_to_file         (const std::string& filename)                             -> void;
 
 // instrumentation functions
 // instruction mode

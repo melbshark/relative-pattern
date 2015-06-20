@@ -95,6 +95,7 @@ typedef std::list<dyn_ins_t> dyn_inss_t;
 
 extern dyn_inss_t                trace;
 extern map_address_instruction_t cached_ins_at_addr;
+extern std::vector<uint32_t>     virtual_trace;
 
 enum
   {

@@ -72,7 +72,9 @@ const static auto trace_bb_default_filename = std::string("0acc4fd8-acca-418c-93
 KNOB<string> trace_bb_file                                    (KNOB_MODE_WRITEONCE, "pintool", "trace-bb",
                                                                "0acc4fd8-acca-418c-9384-d0dd60ac85c9", "output file, for basic block trace");
 
-std::ofstream vtrace_logfile = std::ofstream("vtrace.log", std::ofstream::out | std::ofstream::trunc);
+const static auto virtual_trace_default_filename = std::string("793ded05-0eb6-4d28-a876-d0dd60ac85c9");
+KNOB<string> virtual_trace_file                               (KNOB_MODE_WRITEONCE, "pintool", "trace-virt",
+                                                               "793ded05-0eb6-4d28-a876-d0dd60ac85c9", "output file, for virtual trace");
 
 /*====================================================================================================================*/
 /*                                                     support functions                                              */
@@ -247,8 +249,7 @@ auto load_configuration_and_options () -> void
 
 auto stop_pin (INT32 code, VOID* data) -> VOID
 {
-  tfm::printfln("save trace...");
-  tfm::format(vtrace_logfile, "save trace\n");
+  tfm::printfln("save results...");
 
   cap_save_trace_to_file(output_file.Value(), output_trace_format.Value());
 
@@ -265,6 +266,11 @@ auto stop_pin (INT32 code, VOID* data) -> VOID
   if (trace_bb_file.Value() != trace_bb_default_filename) {
     tfm::printfln("save basic block trace to file %s...", trace_bb_file.Value());
     cap_save_basic_block_trace_to_file(trace_bb_file.Value());
+  }
+
+  if (virtual_trace_file.Value() != virtual_trace_default_filename) {
+    tfm::printfln("save virtual trace to file %s...", virtual_trace_file.Value());
+    cap_save_virtual_trace_to_file(virtual_trace_file.Value());
   }
 
   return;
@@ -293,7 +299,6 @@ auto main(int argc, char* argv[]) -> int
 
   // symbol of the binary should be initialized first
   tfm::printfln("initialize image symbols...");
-//  tfm::format(vtrace_logfile, "initialize image symbols...");
   PIN_InitSymbols();
 
   if (PIN_Init(argc, argv)) {

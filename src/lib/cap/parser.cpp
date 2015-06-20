@@ -9,7 +9,6 @@
 #include <cassert>
 
 extern auto normalize_hex_string (const std::string& input) -> std::string;
-extern std::ofstream vtrace_logfile;
 
 auto real_value_of_reg (const dyn_reg_t& reg_val) -> ADDRINT
 {
@@ -68,7 +67,6 @@ auto real_value_of_mem (const std::pair<dyn_mem_t, ADDRINT>& mem_val) -> ADDRINT
 auto save_in_simple_format (std::ofstream& output_stream) -> void
 {
   tfm::printfln("trace length %d", trace.size());
-  tfm::format(vtrace_logfile, "trace length %d\n", trace.size());
 
   for (const dyn_ins_t& ins : trace) {
     auto ins_addr = std::get<INS_ADDRESS>(ins);
@@ -149,6 +147,23 @@ auto save_in_simple_format (std::ofstream& output_stream) -> void
 
 //    tfm::format(output_stream, "\n");
 //  });
+  return;
+}
+
+auto save_virtual_trace (std::ofstream& output_stream) -> void
+{
+  for (const dyn_ins_t& ins : trace) {
+    auto ins_address = std::get<INS_ADDRESS>(ins);
+
+      if (ins_address == 0x43528e) {
+        for (const auto& reg_val : std::get<INS_WRITE_REGS>(ins)) {
+          if (REG_StringShort(std::get<0>(reg_val)) == "eax") {
+            tfm::format(output_stream, "%d ", real_value_of_reg(reg_val));
+            break;
+          }
+        }
+      }
+  }
   return;
 }
 
@@ -573,4 +588,16 @@ auto cap_save_trace_to_file (const std::string& filename, bool simple_or_proto) 
   }
 
   return;
+}
+
+auto cap_save_virtual_trace_to_file (const std::string& filename) -> void
+{
+  std::ofstream virt_trace_file(filename.c_str(), std::ofstream::trunc);
+  if (virt_trace_file.is_open()) {
+    save_virtual_trace(virt_trace_file);
+    virt_trace_file.close();
+  }
+  else {
+    tfm::printfln("cannot save virtual trace to file %s", filename);
+  }
 }
