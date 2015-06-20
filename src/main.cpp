@@ -1,4 +1,5 @@
 
+#include "parsing_helper.h"
 #include <pin.H>
 
 #include "lib/tinyformat.h"
@@ -8,6 +9,14 @@
 #include <fstream>
 #include <boost/algorithm/string.hpp>
 #include <algorithm>
+
+namespace windows
+{
+#include <Windows.h>
+#include <WinBase.h>
+#include <WinInet.h>
+#include <io.h>
+}
 
 #define PIN_INIT_FAILED 1
 #define UNUSED_DATA 0
@@ -44,7 +53,8 @@ KNOB<string> input_file                                       (KNOB_MODE_WRITEON
 KNOB<string> output_file                                      (KNOB_MODE_WRITEONCE, "pintool", "out",
                                                                "trace.msg", "output file, for resulted trace");
 
-KNOB<bool> output_trace_format (KNOB_MODE_WRITEONCE, "pintool", "format", "false", "output trace format, 1: protobuf, 0: simple");
+KNOB<bool> output_trace_format                                (KNOB_MODE_WRITEONCE, "pintool", "format",
+                                                               "false", "output trace format, 1: protobuf, 0: simple");
 
 const static auto option_default_filename = std::string("9bcbb99f-0eb6-4d28-a876-dea762f5021d");
 KNOB<string> option_file                                      (KNOB_MODE_WRITEONCE, "pintool", "opt",
@@ -61,6 +71,8 @@ KNOB<string> trace_bb_dot_file                                (KNOB_MODE_WRITEON
 const static auto trace_bb_default_filename = std::string("0acc4fd8-acca-418c-9384-d0dd60ac85c9");
 KNOB<string> trace_bb_file                                    (KNOB_MODE_WRITEONCE, "pintool", "trace-bb",
                                                                "0acc4fd8-acca-418c-9384-d0dd60ac85c9", "output file, for basic block trace");
+
+std::ofstream vtrace_logfile = std::ofstream("vtrace.log", std::ofstream::out | std::ofstream::trunc);
 
 /*====================================================================================================================*/
 /*                                                     support functions                                              */
@@ -236,6 +248,8 @@ auto load_configuration_and_options () -> void
 auto stop_pin (INT32 code, VOID* data) -> VOID
 {
   tfm::printfln("save trace...");
+  tfm::format(vtrace_logfile, "save trace\n");
+
   cap_save_trace_to_file(output_file.Value(), output_trace_format.Value());
 
   if (trace_dot_file.Value() != trace_dot_default_filename) {
@@ -256,6 +270,17 @@ auto stop_pin (INT32 code, VOID* data) -> VOID
   return;
 }
 
+auto reattach_console () -> void
+{
+  if (windows::AttachConsole((windows::DWORD) - 1)) {
+    auto hCrt = windows::_open_osfhandle((long)windows::GetStdHandle((windows::DWORD) - 11), 0);
+    auto hf = _fdopen(hCrt, "w");
+    *stdout = *hf;
+    setvbuf(stdout, NULL, _IONBF, 0);
+  }
+  return;
+}
+
 
 /*====================================================================================================================*/
 /*                                                      main function                                                 */
@@ -264,12 +289,15 @@ auto stop_pin (INT32 code, VOID* data) -> VOID
 
 auto main(int argc, char* argv[]) -> int
 {
+  reattach_console();
+
   // symbol of the binary should be initialized first
   tfm::printfln("initialize image symbols...");
+//  tfm::format(vtrace_logfile, "initialize image symbols...");
   PIN_InitSymbols();
 
   if (PIN_Init(argc, argv)) {
-    tfm::format(std::cerr, "%s\n", KNOB_BASE::StringKnobSummary());
+    tfm::printfln("%s", KNOB_BASE::StringKnobSummary());
     PIN_ExitProcess(PIN_INIT_FAILED);
   }
   else {
@@ -284,15 +312,15 @@ auto main(int argc, char* argv[]) -> int
 //    INS_AddInstrumentFunction(cap_get_instruction_information, UNUSED_DATA);
 
     tfm::printfln("pre-processing instructions...");
-    IMG_AddInstrumentFunction(cap_img_mode_get_ins_info, UNUSED_DATA);
+//    IMG_AddInstrumentFunction(cap_img_mode_get_ins_info, UNUSED_DATA);
 
     tfm::printfln("register trace-based instruction instrumentation...");
-    TRACE_AddInstrumentFunction(cap_trace_mode_patch_ins_info, UNUSED_DATA);
+//    TRACE_AddInstrumentFunction(cap_trace_mode_patch_ins_info, UNUSED_DATA);
     TRACE_AddInstrumentFunction(cap_trace_mode_get_ins_info, UNUSED_DATA);
 
     tfm::printfln("register syscall instruction instrumentation...");
-    PIN_AddSyscallEntryFunction(cap_get_syscall_entry_info, UNUSED_DATA);
-    PIN_AddSyscallExitFunction(cap_get_syscall_exit_info, UNUSED_DATA);
+//    PIN_AddSyscallEntryFunction(cap_get_syscall_entry_info, UNUSED_DATA);
+//    PIN_AddSyscallExitFunction(cap_get_syscall_exit_info, UNUSED_DATA);
 
     tfm::printfln("add fini function");
     PIN_AddFiniFunction(stop_pin, UNUSED_DATA);

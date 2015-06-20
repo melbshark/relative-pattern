@@ -2,6 +2,7 @@
 #ifndef INSTRUCTION_H
 #define INSTRUCTION_H
 
+#include "../../parsing_helper.h"
 #include <pin.H>
 extern "C" {
 #include "xed-interface.h"

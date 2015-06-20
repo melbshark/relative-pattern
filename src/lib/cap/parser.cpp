@@ -1,13 +1,15 @@
 #include "cap.h"
 #include "trace.h"
 
-//#include "../type/trace.pb.h"
+#include "../../parsing_helper.h"
+#include <pin.H>
 #include "../tinyformat.h"
 
 #include <fstream>
 #include <cassert>
 
 extern auto normalize_hex_string (const std::string& input) -> std::string;
+extern std::ofstream vtrace_logfile;
 
 auto real_value_of_reg (const dyn_reg_t& reg_val) -> ADDRINT
 {
@@ -66,80 +68,87 @@ auto real_value_of_mem (const std::pair<dyn_mem_t, ADDRINT>& mem_val) -> ADDRINT
 auto save_in_simple_format (std::ofstream& output_stream) -> void
 {
   tfm::printfln("trace length %d", trace.size());
+  tfm::format(vtrace_logfile, "trace length %d\n", trace.size());
 
-  std::for_each(trace.begin(), trace.end(), [&output_stream](decltype(trace)::const_reference ins)
-  {
+  for (const dyn_ins_t& ins : trace) {
     auto ins_addr = std::get<INS_ADDRESS>(ins);
-    tfm::format(output_stream, "%-12s %-40s", normalize_hex_string(StringFromAddrint(ins_addr)),
+    tfm::format(output_stream, "%-12s %-40s\n", normalize_hex_string(StringFromAddrint(ins_addr)),
                 cached_ins_at_addr[ins_addr]->disassemble);
+  }
 
-    tfm::format(output_stream, "  RR: ");
-    for (const auto& reg_val : std::get<INS_READ_REGS>(ins)) {
-      tfm::format(output_stream, "[%s:%s]", REG_StringShort(std::get<0>(reg_val)),
-                  normalize_hex_string(StringFromAddrint(real_value_of_reg(reg_val))));
-    }
+//  std::for_each(trace.begin(), trace.end(), [&output_stream](decltype(trace)::const_reference ins)
+//  {
+//    auto ins_addr = std::get<INS_ADDRESS>(ins);
+//    tfm::format(output_stream, "%-12s %-40s", normalize_hex_string(StringFromAddrint(ins_addr)),
+//                cached_ins_at_addr[ins_addr]->disassemble);
 
-    tfm::format(output_stream, "  RW: ");
-    for (const auto& reg_val : std::get<INS_WRITE_REGS>(ins)) {
-      tfm::format(output_stream, "[%s:%s]", REG_StringShort(std::get<0>(reg_val)),
-                  normalize_hex_string(StringFromAddrint(real_value_of_reg(reg_val))));
-    }
+//    tfm::format(output_stream, "  RR: ");
+//    for (const auto& reg_val : std::get<INS_READ_REGS>(ins)) {
+//      tfm::format(output_stream, "[%s:%s]", REG_StringShort(std::get<0>(reg_val)),
+//                  normalize_hex_string(StringFromAddrint(real_value_of_reg(reg_val))));
+//    }
 
-    tfm::format(output_stream, "  MR: ");
-    for (const auto & mem_val : std::get<INS_READ_MEMS>(ins)) {
-      tfm::format(output_stream, "[%s:%d:%s]", normalize_hex_string(StringFromAddrint(std::get<0>(std::get<0>(mem_val)))),
-                  std::get<1>(std::get<0>(mem_val)), normalize_hex_string(StringFromAddrint(real_value_of_mem(mem_val))));
-    }
+//    tfm::format(output_stream, "  RW: ");
+//    for (const auto& reg_val : std::get<INS_WRITE_REGS>(ins)) {
+//      tfm::format(output_stream, "[%s:%s]", REG_StringShort(std::get<0>(reg_val)),
+//                  normalize_hex_string(StringFromAddrint(real_value_of_reg(reg_val))));
+//    }
 
-    tfm::format(output_stream, "  MW: ");
-    for (const auto & mem_val : std::get<INS_WRITE_MEMS>(ins)) {
-      tfm::format(output_stream, "[%s:%d:%s]", normalize_hex_string(StringFromAddrint(std::get<0>(std::get<0>(mem_val)))),
-                  std::get<1>(std::get<0>(mem_val)), normalize_hex_string(StringFromAddrint(real_value_of_mem(mem_val))));
-    }
+//    tfm::format(output_stream, "  MR: ");
+//    for (const auto & mem_val : std::get<INS_READ_MEMS>(ins)) {
+//      tfm::format(output_stream, "[%s:%d:%s]", normalize_hex_string(StringFromAddrint(std::get<0>(std::get<0>(mem_val)))),
+//                  std::get<1>(std::get<0>(mem_val)), normalize_hex_string(StringFromAddrint(real_value_of_mem(mem_val))));
+//    }
 
-    if (cached_ins_at_addr[ins_addr]->is_syscall) {
-      auto concret_info = std::get<INS_CONCRETE_INFO>(ins);
-      switch (concret_info.which())
-      {
-      case 0: /* SYS_OPEN */
-      {
-        auto open_concret_info = boost::get<sys_open_info_t>(concret_info);
-        tfm::format(output_stream, " ID: %d[%s:%d]", sys_open_info_t::id,
-                    open_concret_info.path_name, open_concret_info.file_desc);
-        break;
-      }
+//    tfm::format(output_stream, "  MW: ");
+//    for (const auto & mem_val : std::get<INS_WRITE_MEMS>(ins)) {
+//      tfm::format(output_stream, "[%s:%d:%s]", normalize_hex_string(StringFromAddrint(std::get<0>(std::get<0>(mem_val)))),
+//                  std::get<1>(std::get<0>(mem_val)), normalize_hex_string(StringFromAddrint(real_value_of_mem(mem_val))));
+//    }
 
-      case 1: /* SYS_READ */
-      {
-        auto read_concret_info = boost::get<sys_read_info_t>(concret_info);
-        tfm::format(output_stream, "  ID: %d[%s:%d:%d:%c]", sys_read_info_t::id,
-                    normalize_hex_string(StringFromAddrint(read_concret_info.buffer_addr)),
-                    read_concret_info.buffer_length, read_concret_info.read_length,
-                    read_concret_info.buffer.get()[0]);
-        break;
-      }
+//    if (cached_ins_at_addr[ins_addr]->is_syscall) {
+//      auto concret_info = std::get<INS_CONCRETE_INFO>(ins);
+//      switch (concret_info.which())
+//      {
+//      case 0: /* SYS_OPEN */
+//      {
+//        auto open_concret_info = boost::get<sys_open_info_t>(concret_info);
+//        tfm::format(output_stream, " ID: %d[%s:%d]", sys_open_info_t::id,
+//                    open_concret_info.path_name, open_concret_info.file_desc);
+//        break;
+//      }
 
-      case 2: /* SYS_WRITE */
-      {
-        auto write_concret_info = boost::get<sys_write_info_t>(concret_info);
-        tfm::format(output_stream, " ID: %d[%s:%d:%d:%c]", sys_open_info_t::id,
-                    normalize_hex_string(StringFromAddrint(write_concret_info.buffer_addr)),
-                    write_concret_info.buffer_length, write_concret_info.write_length,
-                    write_concret_info.buffer.get()[0]);
-        break;
-      }
+//      case 1: /* SYS_READ */
+//      {
+//        auto read_concret_info = boost::get<sys_read_info_t>(concret_info);
+//        tfm::format(output_stream, "  ID: %d[%s:%d:%d:%c]", sys_read_info_t::id,
+//                    normalize_hex_string(StringFromAddrint(read_concret_info.buffer_addr)),
+//                    read_concret_info.buffer_length, read_concret_info.read_length,
+//                    read_concret_info.buffer.get()[0]);
+//        break;
+//      }
 
-      case 3: /* SYS_OTHER */
-      {
-        auto other_concret_info = boost::get<sys_other_info_t>(concret_info);
-        tfm::format(output_stream, " ID: %d", other_concret_info.real_id);
-        break;
-      }
-      }
-    }
+//      case 2: /* SYS_WRITE */
+//      {
+//        auto write_concret_info = boost::get<sys_write_info_t>(concret_info);
+//        tfm::format(output_stream, " ID: %d[%s:%d:%d:%c]", sys_open_info_t::id,
+//                    normalize_hex_string(StringFromAddrint(write_concret_info.buffer_addr)),
+//                    write_concret_info.buffer_length, write_concret_info.write_length,
+//                    write_concret_info.buffer.get()[0]);
+//        break;
+//      }
 
-    tfm::format(output_stream, "\n");
-  });
+//      case 3: /* SYS_OTHER */
+//      {
+//        auto other_concret_info = boost::get<sys_other_info_t>(concret_info);
+//        tfm::format(output_stream, " ID: %d", other_concret_info.real_id);
+//        break;
+//      }
+//      }
+//    }
+
+//    tfm::format(output_stream, "\n");
+//  });
   return;
 }
 
@@ -549,8 +558,7 @@ auto save_in_simple_format (std::ofstream& output_stream) -> void
 
 auto cap_save_trace_to_file (const std::string& filename, bool simple_or_proto) -> void
 {
-  std::ofstream trace_file(filename.c_str(),
-                           std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
+  std::ofstream trace_file(filename.c_str(), std::ofstream::out | std::ofstream::trunc);
 
   if (trace_file.is_open()) {
 //    if (simple_or_proto) save_in_simple_format(trace_file);

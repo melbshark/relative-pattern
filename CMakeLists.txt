@@ -2,7 +2,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMake/")
 
 project(PinICap)
 cmake_minimum_required(VERSION 2.8)
-project(${PROJECTNAME} CXX)
 
 set(CMAKE_BUILD_TYPE "None")
 
@@ -25,7 +24,7 @@ set(PIN_CPU_ARCH "ia32")
 set(PIN_CPU_ARCH_LONG "ia32")
 
 set(PIN_INCLUDE_DIRS
-  ${PIN_ROOT_DIR}/extras/xed2-ia32/include
+  ${PIN_ROOT_DIR}/extras/xed-ia32/include
   ${PIN_ROOT_DIR}/source/include/pin
   ${PIN_ROOT_DIR}/source/include/pin/gen
   ${PIN_ROOT_DIR}/extras/components/include

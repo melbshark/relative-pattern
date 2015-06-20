@@ -9,11 +9,14 @@
 #include <cassert>
 #include <bitset>
 #include <functional>
+#include <fstream>
 
 #include <boost/type_traits.hpp>
 #include <typeinfo>
 
 extern auto normalize_hex_string (const std::string& input) -> std::string;
+
+extern std::ofstream vtrace_logfile;
 
 enum tracing_state_t
 {
@@ -354,9 +357,6 @@ enum rw_t { READ = 0, WRITE = 1 };
 template <rw_t read_or_write>
 static auto save_memory (ADDRINT mem_addr, UINT32 mem_size, THREADID thread_id) -> void
 {
-//  tfm::printfln("%s", __FUNCTION__);
-  static_assert((read_or_write == READ) || (read_or_write == WRITE), "unknown action");
-
   static auto save_memory_size = std::map<
       uint8_t, std::function<void (dyn_mems_t&, ADDRINT)>
       > {
@@ -375,6 +375,12 @@ static auto save_memory (ADDRINT mem_addr, UINT32 mem_size, THREADID thread_id) 
                                                 std::get<INS_WRITE_MEMS>(ins_at_thread[thread_id]);
 
       if (mem_size != 0) {
+        if (mem_size > 8) {
+//          auto current_ins = cached_ins_at_addr[std::get<INS_ADDRESS>(ins_at_thread[thread_id])];
+//          tfm::format(vtrace_logfile, "%s %b\n", current_ins->disassemble, current_ins->is_special);
+//          vtrace_logfile.close();
+          PIN_ExitApplication(0);
+        }
         assert((mem_size == 1) || (mem_size == 2) || (mem_size == 4) || (mem_size == 8));
         assert(mem_addr != 0);
 
@@ -626,16 +632,6 @@ static auto patch_memory (ADDRINT ins_addr, bool patch_point, ADDRINT patch_mem_
 
 static auto save_before_handling (INS ins) -> void
 {
-  static_assert(std::is_same<
-                decltype(save_register<WRITE>), VOID (const CONTEXT*, UINT32)
-                >::value, "invalid callback function type");
-
-//  static_assert(is_well_formed<
-//                decltype(save_register<WRITE>)
-//                >::value<
-//                IARG_CONST_CONTEXT, IARG_THREAD_ID
-//                >(), "type conflict between instrument and callback functions");
-
   auto ins_address = INS_Address(ins);
   assert(!cached_ins_at_addr[ins_address]->is_special);
 
@@ -645,16 +641,6 @@ static auto save_before_handling (INS ins) -> void
                  IARG_CONST_CONTEXT,
                  IARG_THREAD_ID,
                  IARG_END);
-
-  static_assert(std::is_same<
-                decltype(save_memory<WRITE>), VOID (ADDRINT, UINT32, UINT32)
-                >::value, "invalid callback function type");
-
-//  static_assert(is_well_formed<
-//                decltype(save_memory<WRITE>)
-//                >::value<
-//                IARG_ADDRINT, IARG_UINT32, IARG_THREAD_ID
-//                >(), "type conflict between instrument and callback functions");
 
   INS_InsertCall(ins,
                  IPOINT_BEFORE,
@@ -669,16 +655,6 @@ static auto save_before_handling (INS ins) -> void
 
 static auto update_condition_before_handling (INS ins) -> void
 {
-  static_assert(std::is_same<
-                decltype(update_condition<ANY_TO_DISABLE>), VOID (ADDRINT, UINT32)
-                >::value, "invalid callback function type");
-
-//  static_assert(is_well_formed<
-//                decltype(update_condition<ANY_TO_DISABLE>)
-//                >::value<
-//                IARG_INST_PTR, IARG_THREAD_ID
-//                >(), "type conflict between instrument and callback functions");
-
   INS_InsertCall(ins,
                  IPOINT_BEFORE,
                  reinterpret_cast<AFUNPTR>(update_condition<ANY_TO_DISABLE>),
@@ -727,6 +703,9 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
   if (cached_ins_at_addr.find(ins_addr) == cached_ins_at_addr.end()) {
     cached_ins_at_addr[ins_addr] = std::make_shared<instruction>(ins);
   }
+//  tfm::format(vtrace_logfile, "%-12s %-40s", normalize_hex_string(StringFromAddrint(ins_addr)),
+//              cached_ins_at_addr[ins_addr]->disassemble);
+//  vtrace_logfile.flush();
 
   /*
    * Current instruction.
@@ -738,16 +717,6 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
     /*
      *  We must always verify whether there is a new execution thread or not.
      */
-    static_assert(std::is_same<
-                  decltype(update_condition<NEW_THREAD>), VOID (ADDRINT, THREADID)
-                  >::value, "invalid callback function type");
-
-//    static_assert(is_well_formed<
-//                  decltype(update_condition<NEW_THREAD>)
-//                  >::value<
-//                  IARG_INST_PTR, IARG_THREAD_ID
-//                  >(), "type conflict between instrument and callback functions");
-
     INS_InsertCall(ins,
                    IPOINT_BEFORE,
                    reinterpret_cast<AFUNPTR>(update_condition<NEW_THREAD>),
@@ -775,16 +744,6 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
      */
 
     if (some_thread_is_not_suspended || some_thread_is_selective_suspended) {
-      static_assert(std::is_same<
-                    decltype(add_to_trace), VOID (UINT32)
-                    >::value, "invalid callback function type");
-
-//      static_assert(is_well_formed<
-//                    decltype(add_to_trace)
-//                    >::value<
-//                    IARG_THREAD_ID
-//                    >(), "type conflict between instrument and callback functions");
-
       INS_InsertCall(ins,                                               // instrumented instruction
                      IPOINT_BEFORE,                                     // instrumentation point
                      reinterpret_cast<AFUNPTR>(add_to_trace),           // callback analysis function
@@ -816,16 +775,6 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
           ) {
         assert(current_ins->is_call && "the instruction at the skip address must be a call");
 
-        static_assert(std::is_same<
-                      decltype(update_resume_address), VOID (ADDRINT, UINT32)
-                      >::value, "invalid callback function type");
-
-//        static_assert(is_well_formed<
-//                      decltype(update_resume_address)
-//                      >::value<
-//                      IARG_ADDRINT, IARG_THREAD_ID
-//                      >(), "type conflict between instrument and callback functions");
-
         INS_InsertCall(ins,
                        IPOINT_BEFORE,
                        reinterpret_cast<AFUNPTR>(update_resume_address),
@@ -853,16 +802,6 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
      * explicitly makes callback functions after it be called or not
      */
 
-    static_assert(std::is_same<
-                  decltype(reinstrument_because_of_suspended_state), VOID (const CONTEXT*)
-                  >::value, "invalid callback function type");
-
-//    static_assert(is_well_formed<
-//                  decltype(reinstrument_because_of_suspended_state)
-//                  >::value<
-//                  IARG_CONST_CONTEXT
-//                  >(), "type conflict between instrument and callback functions");
-
     // ATTENTION: cette fonction pourra changer l'instrumentation!!!!
     if (current_ins->is_special) {
       INS_InsertCall(ins,
@@ -883,17 +822,6 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
     if (some_thread_is_not_suspended || some_thread_is_selective_suspended) {
 
       // initialize and save information of the CURRENT instruction
-
-      static_assert(std::is_same<
-                    decltype(initialize_instruction), VOID (ADDRINT, UINT32)
-                    >::value, "invalid callback function type");
-
-//      static_assert(is_well_formed<
-//                    decltype(initialize_instruction)
-//                    >::value<
-//                    IARG_INST_PTR, IARG_THREAD_ID
-//                    >(), "type conflict between instrument and callback functions");
-
       INS_InsertCall(ins,                                               // instrumented instruction
                      IPOINT_BEFORE,                                     // instrumentation point
                      reinterpret_cast<AFUNPTR>(initialize_instruction), // callback analysis function
@@ -902,17 +830,6 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
                      IARG_END);
 
       if (current_ins->is_call) {
-
-        static_assert(std::is_same<
-                      decltype(save_call_concrete_info), VOID (ADDRINT, UINT32)
-                      >::value, "invalid callback function type");
-
-//        static_assert(is_well_formed<
-//                      decltype(save_call_concrete_info)
-//                      >::value<
-//                      IARG_BRANCH_TARGET_ADDR, IARG_THREAD_ID
-//                      >(), "type conflict between instrument and callback functions");
-
         INS_InsertCall(ins,
                        IPOINT_BEFORE,
                        reinterpret_cast<AFUNPTR>(save_call_concrete_info),
@@ -922,17 +839,6 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
       }
 
       if (!current_ins->src_registers.empty() && !current_ins->is_special) {
-
-        static_assert(std::is_same<
-                      decltype(save_register<READ>), VOID (const CONTEXT*, UINT32)
-                      >::value, "invalid callback function type");
-
-//        static_assert(is_well_formed<
-//                      decltype(save_register<READ>)
-//                      >::value<
-//                      IARG_CONST_CONTEXT, IARG_THREAD_ID
-//                      >(), "type conflict between instrument and callback functions");
-
         INS_InsertCall(ins,                                             // instrumented instruction
                        IPOINT_BEFORE,                                   // instrumentation point
                        reinterpret_cast<AFUNPTR>(save_register<READ>),  // callback analysis function
@@ -942,16 +848,6 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
       }
 
       if (current_ins->is_memory_read && !current_ins->is_special) {
-
-        static_assert(std::is_same<
-                      decltype(save_memory<READ>), VOID (ADDRINT, UINT32, UINT32)
-                      >::value, "invalid callback function type");
-
-//        static_assert(is_well_formed<
-//                      decltype(save_memory<READ>)>::value<
-//                      IARG_MEMORYREAD_EA, IARG_MEMORYREAD_SIZE, IARG_THREAD_ID
-//                      >(), "type conflict between instrument and callback functions");
-
         INS_InsertCall(ins,                                             // instrumented instruction
                        IPOINT_BEFORE,                                   // instrumentation point
                        reinterpret_cast<AFUNPTR>(save_memory<READ>),    // callback analysis function (read)
@@ -961,13 +857,6 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
       }
 
       if (current_ins->has_memory_read_2 && !current_ins->is_special) {
-
-//        static_assert(is_well_formed<
-//                      decltype(save_memory<READ>)
-//                      >::value<
-//                      IARG_MEMORYREAD2_EA, IARG_MEMORYREAD_SIZE, IARG_THREAD_ID
-//                      >(), "type conflict between instrument and callback functions");
-
         INS_InsertCall(ins,                                             // instrumented instruction
                        IPOINT_BEFORE,                                   // instrumentation point
                        reinterpret_cast<AFUNPTR>(save_memory<READ>),    // callback analysis function (read)
@@ -977,13 +866,6 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
       }
 
       if (current_ins->is_memory_write && !current_ins->is_special) {
-
-//        static_assert(is_well_formed<
-//                      decltype(save_memory<WRITE>)
-//                      >::value<
-//                      IARG_MEMORYWRITE_EA, IARG_MEMORYWRITE_SIZE, IARG_THREAD_ID
-//                      >(), "type conflict between instrument and callback functions");
-
         INS_InsertCall(ins,                                             // instrumented instruction
                        IPOINT_BEFORE,                                   // instrumentation point
                        reinterpret_cast<AFUNPTR>(save_memory<WRITE>),   // callback analysis function (write)
@@ -1005,16 +887,6 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
 
     if (!current_ins->is_special) {
       if (current_ins->is_call || current_ins->is_branch) {
-        static_assert(std::is_same<
-                      decltype(reinstrument_if_some_thread_started), VOID (ADDRINT, ADDRINT, const CONTEXT*)
-                      >::value, "invalid callback function type");
-
-//        static_assert(is_well_formed<
-//                      decltype(reinstrument_if_some_thread_started)
-//                      >::value<
-//                      IARG_INST_PTR, IARG_BRANCH_TARGET_ADDR, IARG_CONST_CONTEXT
-//                      >(), "type conflict between instrument and callback functions");
-
         INS_InsertCall(ins,
                        IPOINT_BEFORE,
                        reinterpret_cast<AFUNPTR>(reinstrument_if_some_thread_started),
@@ -1034,16 +906,6 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
                          IARG_END);
         }
         else {
-          static_assert(std::is_same<
-                        decltype(reinstrument_if_some_thread_started), VOID (ADDRINT, ADDRINT, const CONTEXT*)
-                        >::value, "invalid callback function type");
-
-//          static_assert(is_well_formed<
-//                        decltype(reinstrument_if_some_thread_started)
-//                        >::value<
-//                        IARG_INST_PTR, IARG_ADDRINT, IARG_CONST_CONTEXT
-//                        >(), "type conflict between instrument and callback functions");
-
   //        tfm::printfln("%s : %s", normalize_hex_string(StringFromAddrint(current_ins->address)), current_ins->disassemble);
 
           INS_InsertCall(ins,
@@ -1071,16 +933,6 @@ static auto insert_ins_patch_info_callbacks (INS ins) -> void
     auto ins_addr = INS_Address(ins);
 
     if (execution_order_of_address.find(ins_addr) != execution_order_of_address.end()) {
-
-      static_assert(std::is_same<
-                    decltype(update_execution_order), VOID (ADDRINT, UINT32)
-                    >::value, "invalid callback function type");
-
-//      static_assert(is_well_formed<
-//                    decltype(update_execution_order)
-//                    >::value<
-//                    IARG_INST_PTR, IARG_THREAD_ID
-//                    >(), "type conflict between instrument and callback functions");
 
       INS_InsertCall(ins,                                               // instrumented instruction
                      IPOINT_BEFORE,                                     // instrumentation point
@@ -1116,16 +968,6 @@ static auto insert_ins_patch_info_callbacks (INS ins) -> void
 
             if (INS_Valid(ins)) {
 
-              static_assert(std::is_same<
-                            decltype(patch_register), VOID (ADDRINT, bool, UINT32, PIN_REGISTER*, UINT32)
-                            >::value, "invalid callback function type");
-
-//              static_assert(is_well_formed<
-//                            decltype(patch_register)
-//                            >::value<
-//                            IARG_INST_PTR, IARG_BOOL, IARG_UINT32, IARG_REG_REFERENCE, IARG_THREAD_ID
-//                            >(), "type conflict between instrument and callback functions");
-
               INS_InsertCall(ins,                                       // instrumented instruction
                              pin_patch_point,                           // instrumentation point
                              reinterpret_cast<AFUNPTR>(patch_register), // callback analysis function
@@ -1159,16 +1001,6 @@ static auto insert_ins_patch_info_callbacks (INS ins) -> void
 
             auto patch_mem_val = std::get<1>(patch_mem_info);
             auto patch_mem_addr = std::get<0>(patch_mem_val);
-
-            static_assert(std::is_same<
-                          decltype(patch_memory), VOID (ADDRINT, bool, ADDRINT, UINT32)
-                          >::value, "invalid callback function type");
-
-//            static_assert(is_well_formed<
-//                          decltype(patch_memory)
-//                          >::value<
-//                          IARG_INST_PTR, IARG_BOOL, IARG_ADDRINT, IARG_THREAD_ID
-//                          >(), "type conflict between instrument and callback functions");
 
             INS_InsertCall(ins,                                       // instrumented instruction
                            pin_patch_point,                           // instrumentation point
