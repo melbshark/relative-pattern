@@ -155,7 +155,7 @@ auto save_virtual_trace (std::ofstream& output_stream) -> void
   for (const dyn_ins_t& ins : trace) {
     auto ins_address = std::get<INS_ADDRESS>(ins);
 
-      if (ins_address == 0x43528e) {
+      if (ins_address == 0x439238) {
         for (const auto& reg_val : std::get<INS_WRITE_REGS>(ins)) {
           if (REG_StringShort(std::get<0>(reg_val)) == "eax") {
             tfm::format(output_stream, "%d ", real_value_of_reg(reg_val));
