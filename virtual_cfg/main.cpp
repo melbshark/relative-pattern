@@ -336,8 +336,11 @@ auto save_bb_cfg_to_file (const std::string& filename) -> void
       }
       else tfm::format(label, "[shape=box,style=rounded,label=\"");
 
+      auto count = uint32_t{0};
       for (const auto& virt_ins : virtual_bb_cfg[vertex_desc]) {
-        tfm::format(label, "0x%x\\l", virt_ins);
+        tfm::format(label, "0x%x ", virt_ins);
+        count++;
+        if (count % 5 == 0) tfm::format(label, "\\l");
       }
 
       tfm::format(label, "\",fontname=\"Inconsolata\",fontsize=10.0]");
