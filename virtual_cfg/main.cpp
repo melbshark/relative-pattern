@@ -27,6 +27,7 @@ typedef tr_graph_t::edge_iterator tr_edge_iter_t;
 
 static tr_graph_t virtual_cfg;
 static tr_vertex_desc_t root_vertex_desc = tr_graph_t::null_vertex();
+static auto virtual_inss = std::set<tr_vertex_t>{};
 
 typedef std::vector<tr_vertex_t> bb_vertex_t;
 typedef std::vector<bb_vertex_t> bb_vertices_t;
@@ -69,12 +70,12 @@ auto get_virtual_trace (const std::string& filename) -> tr_vertices_t
     }
   }
 
-  auto virt_inss = std::set<uint32_t>{};
-  for (const auto& virt_ins : output_trace) {
-    virt_inss.insert(virt_ins);
-  }
+//  auto virt_inss = std::set<uint32_t>{};
+//  for (const auto& virt_ins : output_trace) {
+//    virt_inss.insert(virt_ins);
+//  }
 
-  tfm::printfln("trace length %d, of %d different instructions", output_trace.size(), virt_inss.size());
+//  tfm::printfln("trace length %d, of %d different instructions", output_trace.size(), virt_inss.size());
 
   return output_trace;
 }
@@ -126,6 +127,22 @@ auto add_trace_into_cfg (const tr_vertices_t& trace) -> void
       current_vertex_desc = next_vertex_desc;
     });
   }
+  return;
+}
+
+
+auto collect_virtual_instructions () -> void
+{
+  auto first_vertex_iter = tr_vertex_iter_t();
+  auto last_vertex_iter = tr_vertex_iter_t();
+
+  std::tie(first_vertex_iter, last_vertex_iter) = boost::vertices(virtual_cfg);
+
+  std::for_each(first_vertex_iter, last_vertex_iter, [&](tr_vertex_desc_t vertex_desc)
+  {
+    virtual_inss.insert(virtual_cfg[vertex_desc]);
+  });
+
   return;
 }
 
@@ -354,10 +371,19 @@ auto save_bb_cfg_to_file (const std::string& filename) -> void
 int main(int argc, char* argv[])
 {
   if (argc > 3) {
+    auto ins_number = uint32_t{0};
+
     for (int32_t i = 1; i < argc - 2; ++i) {
       auto new_trace = get_virtual_trace(std::string(argv[i]));
       add_trace_into_cfg(new_trace);
+      ins_number += new_trace.size();
     }
+
+//    collect_virtual_instructions();
+
+    tfm::printfln("total trace length: %d", ins_number);
+    tfm::printfln("traced virtual instructions: %d", boost::num_vertices(virtual_cfg));
+//    tfm::printfln("different virtual instructions: %d", virtual_inss.size());
 
     tfm::printfln("save virtual graph to file: %s", argv[argc - 2]);
     save_cfg_to_file(std::string(argv[argc - 2]));
