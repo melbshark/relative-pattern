@@ -62,7 +62,7 @@ auto get_virtual_trace (const std::string& filename) -> tr_vertices_t
 
     for (auto& srt : strs) {
       try {
-        output_trace.push_back(std::stoul(srt));
+        output_trace.push_back(std::stoul(srt, nullptr, 0x10));
       } catch (std::exception& expt) {
         tfm::printfln("%s", expt.what());
         break;
@@ -337,7 +337,7 @@ auto save_bb_cfg_to_file (const std::string& filename) -> void
       else tfm::format(label, "[shape=box,style=rounded,label=\"");
 
       for (const auto& virt_ins : virtual_bb_cfg[vertex_desc]) {
-        tfm::format(label, "%d ", virt_ins);
+        tfm::format(label, "0x%x\\l", virt_ins);
       }
 
       tfm::format(label, "\",fontname=\"Inconsolata\",fontsize=10.0]");
@@ -352,7 +352,7 @@ auto save_bb_cfg_to_file (const std::string& filename) -> void
     auto output_file = std::ofstream(filename.c_str(), std::ofstream::trunc);
 
     if (output_file.is_open()) {
-      boost::write_graphviz(output_file, virtual_cfg,
+      boost::write_graphviz(output_file, virtual_bb_cfg,
                             std::bind(write_vertex, std::placeholders::_1, std::placeholders::_2),
                             std::bind(write_edge, std::placeholders::_1, std::placeholders::_2));
       output_file.close();

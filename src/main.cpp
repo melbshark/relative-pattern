@@ -76,6 +76,9 @@ const static auto virtual_trace_default_filename = std::string("793ded05-0eb6-4d
 KNOB<string> virtual_trace_file                               (KNOB_MODE_WRITEONCE, "pintool", "trace-virt",
                                                                "793ded05-0eb6-4d28-a876-d0dd60ac85c9", "output file, for virtual trace");
 
+//execute program with, for example:
+//pin.exe -t vtrace.dll -opt app.opt -dot app.dot -dot-bb app_bb.dot -trace-bb app_bb.trace -trace-virt app_virt.trace -- app.exe
+
 /*====================================================================================================================*/
 /*                                                     support functions                                              */
 /*====================================================================================================================*/

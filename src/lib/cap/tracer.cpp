@@ -501,8 +501,6 @@ static auto add_to_trace (THREADID thread_id) -> void
 
 static auto remove_previous_instruction (THREADID thread_id) -> void
 {
-//  tfm::printfln("%s", __FUNCTION__);
-
   if (ins_at_thread.find(thread_id) != ins_at_thread.end()) {
 //    tfm::printfln("remove instruction at thread %d", thread_id);
     ins_at_thread.erase(thread_id);
