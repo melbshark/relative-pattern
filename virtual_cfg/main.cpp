@@ -1,5 +1,6 @@
 #include "tinyformat.h"
 
+#include <set>
 #include <vector>
 #include <cstdint>
 #include <fstream>
@@ -40,9 +41,21 @@ auto get_virtual_trace (const std::string& filename) -> tr_vertices_t
     boost::split(strs, line, boost::is_any_of(", "), boost::token_compress_on);
 
     for (auto& srt : strs) {
-      output_trace.push_back(std::stoul(srt, 0, 10));
+      try {
+        output_trace.push_back(std::stoul(srt));
+      } catch (std::exception& expt) {
+        tfm::printfln("%s", expt.what());
+        break;
+      }
     }
   }
+
+  auto virt_inss = std::set<uint32_t>{};
+  for (const auto& virt_ins : output_trace) {
+    virt_inss.insert(virt_ins);
+  }
+
+  tfm::printfln("trace length %d, of %d different instructions", output_trace.size(), virt_inss.size());
 
   return output_trace;
 }
@@ -51,36 +64,49 @@ auto get_virtual_trace (const std::string& filename) -> tr_vertices_t
 auto add_trace_into_cfg (const tr_vertices_t& trace) -> void
 {
   if (!trace.empty()) {
-    auto offset = uint32_t{0};
     if (boost::num_vertices(virtual_cfg) == 0) {
       root_vertex_desc = boost::add_vertex(trace.front(), virtual_cfg);
-      offset = 1;
     }
-    else {
-      assert(root_vertex_desc == trace.front());
-      
+
+    assert(root_vertex_desc == trace.front());
+
 //      auto current_virt_in_trace = trace.front();
-      auto current_vertex_desc = root_vertex_desc;
-      
-      std::for_each(std::begin(trace) + 1, std::end(trace), [&](uint32_t virt_addr) {
-        auto first_out_edge_iter = tr_graph_t::out_edge_iterator();
-        auto last_out_edge_iter = tr_graph_t::out_edge_iterator();
-        
-        std::tie(first_out_edge_iter, last_out_edge_iter) = boost::out_edges(current_vertex_desc, virtual_cfg);
-        
-        auto next_edge_iter = std::find_if(first_out_edge_iter, last_out_edge_iter, [&](tr_edge_desc_t edge_desc) {
-          auto target_desc = boost::target(edge_desc, virtual_cfg);
-          return (virtual_cfg[target_desc] == virt_addr);
-        });
-                   
-        if (next_edge_iter != last_out_edge_iter) {
-          current_vertex_desc = boost::target(*next_edge_iter, virtual_cfg);
-        }
-        else {
-          current_vertex_desc = boost::add_vertex(virt_addr, virtual_cfg);
-        }
+    auto current_vertex_desc = root_vertex_desc;
+    auto next_vertex_desc = tr_graph_t::null_vertex();
+
+    std::for_each(std::begin(trace) + 1, std::end(trace), [&](uint32_t virt_addr) {
+      auto first_out_edge_iter = tr_graph_t::out_edge_iterator();
+      auto last_out_edge_iter = tr_graph_t::out_edge_iterator();
+
+      std::tie(first_out_edge_iter, last_out_edge_iter) = boost::out_edges(current_vertex_desc, virtual_cfg);
+
+      auto next_edge_iter = std::find_if(first_out_edge_iter, last_out_edge_iter, [&](tr_edge_desc_t edge_desc) {
+        auto target_desc = boost::target(edge_desc, virtual_cfg);
+        return (virtual_cfg[target_desc] == virt_addr);
       });
-    }
+
+      if (next_edge_iter != last_out_edge_iter) {
+        next_vertex_desc = boost::target(*next_edge_iter, virtual_cfg);
+      }
+      else {
+        auto first_vertex_iter = tr_graph_t::vertex_iterator();
+        auto last_vertex_iter = tr_graph_t::vertex_iterator();
+
+        std::tie(first_vertex_iter, last_vertex_iter) = boost::vertices(virtual_cfg);
+        auto next_vertex_iter = std::find_if(first_vertex_iter, last_vertex_iter, [&](tr_vertex_desc_t vertex_desc) {
+          return (virtual_cfg[vertex_desc] == virt_addr);
+        });
+
+        if (next_vertex_iter != last_vertex_iter) {
+          next_vertex_desc = *next_vertex_iter;
+        }
+        else next_vertex_desc = boost::add_vertex(virt_addr, virtual_cfg);
+
+        boost::add_edge(current_vertex_desc, next_vertex_desc, virtual_cfg);
+      }
+
+      current_vertex_desc = next_vertex_desc;
+    });
   }
   return;
 }
@@ -89,7 +115,7 @@ auto save_cfg_to_file (const std::string& filename) -> void
 {
   if (boost::num_vertices(virtual_cfg) > 0) {
     auto write_vertex = [](std::ostream& label, tr_vertex_desc_t vertex_desc) -> void {
-      tfm::format(label, "[label=\"%d\"]", virtual_cfg[vertex_desc]);
+      tfm::format(label, "[shape=box,style=rounded,label=\"%d\"]", virtual_cfg[vertex_desc]);
       return;
     };
 
@@ -121,6 +147,7 @@ int main(int argc, char* argv[])
       add_trace_into_cfg(new_trace);
     }
 
+    tfm::printfln("save virtual graph to file %s\n", argv[argc - 1]);
     save_cfg_to_file(std::string(argv[argc - 1]));
   }
 

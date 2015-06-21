@@ -2,6 +2,8 @@ project(virtual_cfg)
 cmake_minimum_required(VERSION 2.8)
 aux_source_directory(. SRC_LIST)
 
+set(CMAKE_BUILD_TYPE "Release")
+
 if(NOT DEFINED BOOST_ROOT_DIR)
   message(FATAL_ERROR "\nBoost not found!\n"
     "Please set the environment variable BOOST_ROOT_DIR to the base directory"
