@@ -1,6 +1,7 @@
 #ifndef CAP_H
 #define CAP_H
 
+#include "../../parsing_helper.h"
 #include <pin.H>
 #include <cstdint>
 

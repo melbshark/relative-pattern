@@ -24,7 +24,7 @@ set(PIN_CPU_ARCH "ia32")
 set(PIN_CPU_ARCH_LONG "ia32")
 
 set(PIN_INCLUDE_DIRS
-  ${PIN_ROOT_DIR}/extras/xed-ia32/include
+  ${PIN_ROOT_DIR}/extras/xed-${PIN_CPU_ARCH_LONG}/include
   ${PIN_ROOT_DIR}/source/include/pin
   ${PIN_ROOT_DIR}/source/include/pin/gen
   ${PIN_ROOT_DIR}/extras/components/include
