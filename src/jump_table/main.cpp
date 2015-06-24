@@ -42,25 +42,29 @@ int main(int argc, char* argv[])
 //    }
 
     //=== dumping jump table
-    auto start_address = std::stoul(argv[2], nullptr, 0x10);
-    auto stop_address = std::stoul(argv[3], nullptr, 0x10);
-    if (stop_address < start_address) throw 3;
-
     auto rodata_base_address = 0;
     auto rodata  = (const char*){nullptr};
+    auto rodata_size = uint32_t{0};
 
     for (uint32_t i = 0; i < sec_number; ++i) {
       auto psection = elf_reader.sections[i];
       if (psection->get_name() == ".rodata") {
         rodata_base_address = psection->get_address();
         rodata = psection->get_data();
+        rodata_size = psection->get_size();
         break;
       }
     }
+    tfm::printfln("Section .rodata of size %d bytes found at range [0x%x, 0x%x)",
+                  rodata_size, rodata_base_address, rodata_base_address + rodata_size);
 
-    if (rodata == nullptr) throw 5;
+    if (rodata == nullptr) throw 4;
     else {
-      if (start_address < rodata_base_address) throw 4;
+      auto start_address = std::stoul(argv[2], nullptr, 0x10);
+      auto stop_address = std::stoul(argv[3], nullptr, 0x10);
+
+      if ((start_address < rodata_base_address) ||
+          (stop_address > rodata_base_address + rodata_size)) throw 5;
       else {
         auto start_entry = (const uint32_t*)(rodata + (start_address - rodata_base_address));
         auto stop_entry = (const uint32_t*)(rodata + (stop_address - rodata_base_address));
@@ -71,8 +75,8 @@ int main(int argc, char* argv[])
         auto count = uint32_t{0};
         for (auto jmp_entry = start_entry; jmp_entry < stop_entry; ++jmp_entry) {
           auto jmp_entry_value = *jmp_entry;
-          tfm::printf("0x%x ", jmp_entry_value);
-          ++count; if (count % 4 == 0) tfm::printfln("");
+          tfm::printf("0x%x; ", jmp_entry_value);
+          ++count; if (count % 8 == 0) tfm::printfln("");
         }
       }
     }
@@ -81,7 +85,7 @@ int main(int argc, char* argv[])
     switch (e) {
       case 1: tfm::printfln("Invalid file class"); break;
       case 2: tfm::printfln("Invalid file encoding"); break;
-      case 3: tfm::printfln("Start address must be smaller than stop address"); break;
+      case 3: tfm::printfln("[start, stop) range must be located in rodata"); break;
       case 4: tfm::printfln("Cannot read .rodata section"); break;
       case 5: tfm::printfln("Start address must be greater than base address of rodata section"); break;
       default: break;
