@@ -19,13 +19,13 @@ extern auto normalize_hex_string (const std::string& input) -> std::string;
 extern std::ofstream vtrace_logfile;
 
 enum tracing_state_t
-{
-  NOT_STARTED         = 0,
-  FULL_SUSPENDED      = 1,
-  SELECTIVE_SUSPENDED = 2,
-  ENABLED             = 3,
-  DISABLED            = 4
-};
+  {
+    NOT_STARTED         = 0,
+    FULL_SUSPENDED      = 1,
+    SELECTIVE_SUSPENDED = 2,
+    ENABLED             = 3,
+    DISABLED            = 4
+  };
 
 using syscall_info_t = std::tuple<
   ADDRINT, // syscall number
@@ -145,22 +145,16 @@ static auto reinstrument_because_of_suspended_state (const CONTEXT* p_ctxt) -> v
 {
 //  tfm::printfln("%s", __FUNCTION__);
 
-  auto new_state = std::any_of(
-        std::begin(state_of_thread), std::end(state_of_thread), [](decltype(state_of_thread)::const_reference thread_state
-        ) {
-
+  auto new_state =
+    std::any_of(std::begin(state_of_thread), std::end(state_of_thread), [](decltype(state_of_thread)::const_reference thread_state) {
       static_assert(std::is_same<decltype(std::get<1>(thread_state)), const tracing_state_t&>::value, "type conflict");
-
       return (std::get<1>(thread_state) != FULL_SUSPENDED) && (std::get<1>(thread_state) != SELECTIVE_SUSPENDED);
   });
 
-  some_thread_is_selective_suspended = std::any_of(
-        std::begin(state_of_thread), std::end(state_of_thread), [](decltype(state_of_thread)::const_reference thread_state
-        ) {
-
-      static_assert(std::is_same<decltype(std::get<1>(thread_state)), const tracing_state_t&>::value, "type conflict");
-
-      return (std::get<1>(thread_state) == SELECTIVE_SUSPENDED);
+  some_thread_is_selective_suspended =
+    std::any_of(std::begin(state_of_thread), std::end(state_of_thread), [](decltype(state_of_thread)::const_reference thread_state) {
+        static_assert(std::is_same<decltype(std::get<1>(thread_state)), const tracing_state_t&>::value, "type conflict");
+        return (std::get<1>(thread_state) == SELECTIVE_SUSPENDED);
   });
 
 //  tfm::printfln("current size of thread array %d", ins_at_thread.size());
@@ -589,7 +583,7 @@ static auto patch_register (ADDRINT ins_addr, bool patch_point,
 static auto patch_memory (ADDRINT ins_addr, bool patch_point, ADDRINT patch_mem_addr, THREADID thread_id) -> void
 {
   for (auto const& patch_mem_info : patched_memory_at_address) {
-    
+
     auto patch_exec_point  = std::get<0>(patch_mem_info);
     auto exec_point        = std::get<0>(patch_exec_point);
     auto exec_addr         = std::get<0>(exec_point);
@@ -1465,7 +1459,7 @@ auto cap_add_patched_memory_value (ADDRINT ins_address, UINT32 exec_order, bool 
   auto exec_point         = exec_point_t(ins_address, exec_order);
   auto patched_exec_point = patch_point_t(exec_point, be_or_af);
   auto memory_value       = memory_patch_value_t(mem_address, mem_size, mem_value);
-  
+
   patched_memory_at_address.push_back(std::make_pair(patched_exec_point, memory_value));
   execution_order_of_address[ins_address] = 0;
 
@@ -1479,7 +1473,7 @@ auto cap_add_patched_register_value (ADDRINT ins_address, UINT32 exec_order, boo
   auto exec_point             = exec_point_t(ins_address, exec_order);
   auto patched_exec_point     = patch_point_t(exec_point, be_or_af);
   auto patched_register_value = register_patch_value_t(reg, lo_pos, hi_pos, reg_value);
-  
+
   patched_register_at_address.push_back(std::make_pair(patched_exec_point, patched_register_value));
   execution_order_of_address[ins_address] = 0;
 

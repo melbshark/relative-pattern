@@ -571,16 +571,13 @@ auto save_virtual_trace (std::ofstream& output_stream) -> void
 /*                                                     exported functions                                             */
 /*====================================================================================================================*/
 
-auto cap_save_trace_to_file (const std::string& filename, bool simple_or_proto) -> void
+auto cap_save_trace_to_file (const std::string& filename) -> void
 {
   std::ofstream trace_file(filename.c_str(), std::ofstream::out | std::ofstream::trunc);
 
   if (trace_file.is_open()) {
-//    if (simple_or_proto) save_in_simple_format(trace_file);
-//    else save_in_protobuf_format(trace_file);
    save_in_simple_format(trace_file);
 //   save_in_protobuf_format(trace_file);
-
     trace_file.close();
   }
   else {

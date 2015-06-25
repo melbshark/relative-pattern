@@ -54,9 +54,6 @@ KNOB<string> input_file                                       (KNOB_MODE_WRITEON
 KNOB<string> output_file                                      (KNOB_MODE_WRITEONCE, "pintool", "out",
                                                                "trace.msg", "output file, for resulted trace");
 
-KNOB<bool> output_trace_format                                (KNOB_MODE_WRITEONCE, "pintool", "format",
-                                                               "false", "output trace format, 1: protobuf, 0: simple");
-
 const static auto option_default_filename = std::string("9bcbb99f-0eb6-4d28-a876-dea762f5021d");
 KNOB<string> option_file                                      (KNOB_MODE_WRITEONCE, "pintool", "opt",
                                                                "9bcbb99f-0eb6-4d28-a876-dea762f5021d", "option file, for parameter");
@@ -255,7 +252,7 @@ auto stop_pin (INT32 code, VOID* data) -> VOID
 {
   tfm::printfln("save results...");
 
-  cap_save_trace_to_file(output_file.Value(), output_trace_format.Value());
+  cap_save_trace_to_file(output_file.Value());
 
   if (trace_dot_file.Value() != trace_dot_default_filename) {
     tfm::printfln("save trace to dot file %s...", trace_dot_file.Value());
