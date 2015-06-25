@@ -1047,7 +1047,7 @@ auto update_syscall_entry_info (dyn_ins_t& instruction) -> void
 }
 
 template<>
-auto update_syscall_entry_info<SYS_OPEN> (dyn_ins_t& instruction) -> void/*concrete_info_t*/
+auto update_syscall_entry_info<CAP_SYS_OPEN> (dyn_ins_t& instruction) -> void/*concrete_info_t*/
 {
   auto syscall_open_info = sys_open_info_t{};
 
@@ -1194,7 +1194,7 @@ auto get_syscall_exit_concret_info (dyn_ins_t& instruction) -> void
 }
 
 template<>
-auto get_syscall_exit_concret_info<SYS_OPEN> (dyn_ins_t& instruction) -> void
+auto get_syscall_exit_concret_info<CAP_SYS_OPEN> (dyn_ins_t& instruction) -> void
 {
   assert(std::get<INS_CONCRETE_INFO>(instruction).which() == 0);
 

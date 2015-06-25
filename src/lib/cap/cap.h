@@ -26,7 +26,7 @@ auto cap_add_patched_register_value         (ADDRINT ins_address, UINT32 exec_or
 auto cap_save_trace_to_file                 (const std::string& filename, bool simple_or_proto)       -> void;
 auto cap_load_trace_from_file               (const std::string& filename)                             -> void; // TODO or not TODO
 auto cap_save_trace_to_dot_file             (const std::string& filename)                             -> void;
-auto cap_save_basic_block_trace_to_dot_file (const std::string& filename)                             -> void;
+auto cap_save_basic_block_cfg_to_dot_file (const std::string& filename)                             -> void;
 auto cap_save_basic_block_trace_to_file     (const std::string& filename)                             -> void;
 auto cap_save_virtual_trace_to_file         (const std::string& filename)                             -> void;
 

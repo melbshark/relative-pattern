@@ -677,7 +677,7 @@ auto cap_save_trace_to_dot_file (const std::string& filename) -> void
 }
 
 
-auto cap_save_basic_block_trace_to_dot_file (const std::string& filename)  -> void
+auto cap_save_basic_block_cfg_to_dot_file (const std::string& filename)  -> void
 {
   auto write_vertex = [](std::ostream& label, bb_vertex_desc_t vertex_desc) -> void {
 
@@ -714,21 +714,47 @@ auto cap_save_basic_block_trace_to_dot_file (const std::string& filename)  -> vo
     return;
   };
 
-  if (boost::num_vertices(internal_graph) > 0) {
+  try {
+    if (trace.empty()) throw 1;
+    if (boost::num_vertices(internal_graph) == 0) construct_graph_from_trace();
+    if (boost::num_vertices(internal_graph) == 0) throw 2;
+
     construct_bb_graph();
+    if (boost::num_vertices(internal_bb_graph) == 0) throw 3;
 
     ofstream output_file(filename.c_str(), std::ofstream::out | std::ofstream::trunc);
-    if (output_file.is_open()) {
-      boost::write_graphviz(output_file, internal_bb_graph,
-                            std::bind(write_vertex, std::placeholders::_1, std::placeholders::_2),
-                            std::bind(write_edge, std::placeholders::_1, std::placeholders::_2));
-      output_file.close();
-    }
-    else {
-      tfm::printfln("cannot save basic block graph to file %s", filename);
+    if (!output_file.is_open()) throw 4;
+
+    boost::write_graphviz(output_file, internal_bb_graph,
+                          std::bind(write_vertex, std::placeholders::_1, std::placeholders::_2),
+                          std::bind(write_edge, std::placeholders::_1, std::placeholders::_2));
+    output_file.close();
+  }
+  catch (int excpt) {
+    switch (excpt) {
+      case 1: tfm::printfln("trace is empty, omit constructing basic block graph"); break;
+      case 2: tfm::printfln("graph is constructed but empty, omit constructing basic block graph"); break;
+      case 3: tfm::printfln("basic block is constructed but empty, omit saving basic block graph"); break;
+      case 4: tfm::printfln("basic block graph is not empty, but cannot open output file"); break;
+      default: break;
     }
   }
-  else tfm::printfln("graph is empty, constructing basic block graph is omitted");
+
+//  if (boost::num_vertices(internal_graph) > 0) {
+//    construct_bb_graph();
+
+//    ofstream output_file(filename.c_str(), std::ofstream::out | std::ofstream::trunc);
+//    if (output_file.is_open()) {
+//      boost::write_graphviz(output_file, internal_bb_graph,
+//                            std::bind(write_vertex, std::placeholders::_1, std::placeholders::_2),
+//                            std::bind(write_edge, std::placeholders::_1, std::placeholders::_2));
+//      output_file.close();
+//    }
+//    else {
+//      tfm::printfln("cannot save basic block graph to file %s", filename);
+//    }
+//  }
+//  else tfm::printfln("graph is empty, constructing basic block graph is omitted");
 
   return;
 }
