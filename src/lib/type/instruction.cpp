@@ -56,9 +56,7 @@ instruction::instruction(const INS& ins)
       (this->category == XED_CATEGORY_X87_ALU) || (this->iclass == XED_ICLASS_XEND) || (this->category == XED_CATEGORY_LOGICAL_FP) ||
       (this->iclass == XED_ICLASS_PUSHA) || (this->iclass == XED_ICLASS_PUSHAD) || (this->iclass == XED_ICLASS_PUSHF) ||
       (this->iclass == XED_ICLASS_PUSHFD) || (this->iclass == XED_ICLASS_PUSHFQ);
-//  if (this->is_special) {
-//  tfm::printfln("special ins");
-//  }
+
 
   // is memory read, write
   this->is_memory_read    = INS_IsMemoryRead(ins);
