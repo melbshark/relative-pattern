@@ -79,17 +79,17 @@ int main(int argc, char* argv[])
     if ((start_jtable_address < rodata_base_address) ||
         (stop_jtable_address > rodata_base_address + rodata_size)) throw 5;
 
-    auto start_jtable_entry = (const uint32_t*)(rodata + (start_jtable_address - rodata_base_address));
-    auto stop_jtable_entry = (const uint32_t*)(rodata + (stop_jtable_address - rodata_base_address));
+    auto start_jtable_entry = (const uint8_t*)(rodata + (start_jtable_address - rodata_base_address));
+    auto stop_jtable_entry = (const uint8_t*)(rodata + (stop_jtable_address - rodata_base_address));
 
     tfm::printfln("Dumping %d entries in .rodata section (0x%x) of [0x%x, 0x%x)",
-                  (stop_jtable_address - start_jtable_address) / sizeof(uint32_t),
+                  (stop_jtable_address - start_jtable_address) / sizeof(uint8_t),
                   rodata_base_address, start_jtable_address, stop_jtable_address);
     auto count = uint32_t{0};
     for (auto jmp_entry = start_jtable_entry; jmp_entry < stop_jtable_entry; ++jmp_entry) {
       auto jmp_entry_value = *jmp_entry;
       tfm::printf("0x%x; ", jmp_entry_value);
-      ++count; if (count % 8 == 0) tfm::printfln("");
+      ++count; if (count % 16 == 0) tfm::printfln("");
     }
 
     //=== dumping virtual PC table
