@@ -70,8 +70,34 @@ auto save_in_simple_format (std::ofstream& output_stream) -> void
 
   for (const dyn_ins_t& ins : trace) {
     auto ins_addr = std::get<INS_ADDRESS>(ins);
-    tfm::format(output_stream, "%-12s %-40s\n", normalize_hex_string(StringFromAddrint(ins_addr)),
+    tfm::format(output_stream, "%-12s %-40s", normalize_hex_string(StringFromAddrint(ins_addr)),
                 cached_ins_at_addr[ins_addr]->disassemble);
+
+    tfm::format(output_stream, "  RR: ");
+    for (const auto& reg_val : std::get<INS_READ_REGS>(ins)) {
+      tfm::format(output_stream, "[%s:%s]", REG_StringShort(std::get<0>(reg_val)),
+                  normalize_hex_string(StringFromAddrint(real_value_of_reg(reg_val))));
+    }
+
+    tfm::format(output_stream, "  RW: ");
+    for (const auto& reg_val : std::get<INS_WRITE_REGS>(ins)) {
+      tfm::format(output_stream, "[%s:%s]", REG_StringShort(std::get<0>(reg_val)),
+                  normalize_hex_string(StringFromAddrint(real_value_of_reg(reg_val))));
+    }
+
+    tfm::format(output_stream, "  MR: ");
+    for (const auto & mem_val : std::get<INS_READ_MEMS>(ins)) {
+      tfm::format(output_stream, "[%s:%d:%s]", normalize_hex_string(StringFromAddrint(std::get<0>(std::get<0>(mem_val)))),
+                  std::get<1>(std::get<0>(mem_val)), normalize_hex_string(StringFromAddrint(real_value_of_mem(mem_val))));
+    }
+
+    tfm::format(output_stream, "  MW: ");
+    for (const auto & mem_val : std::get<INS_WRITE_MEMS>(ins)) {
+      tfm::format(output_stream, "[%s:%d:%s]", normalize_hex_string(StringFromAddrint(std::get<0>(std::get<0>(mem_val)))),
+                  std::get<1>(std::get<0>(mem_val)), normalize_hex_string(StringFromAddrint(real_value_of_mem(mem_val))));
+    }
+
+    tfm::format(output_stream, "\n");
   }
 
 //  std::for_each(trace.begin(), trace.end(), [&output_stream](decltype(trace)::const_reference ins)
