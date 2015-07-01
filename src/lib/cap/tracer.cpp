@@ -479,6 +479,8 @@ static auto add_to_trace (THREADID thread_id) -> void
          cached_ins_at_addr[std::get<INS_ADDRESS>(ins_at_thread[thread_id])]->is_syscall)) {
 
       trace.push_back(ins_at_thread[thread_id]);
+      tfm::printfln("%-12s %-40s", normalize_hex_string(StringFromAddrint(std::get<INS_ADDRESS>(ins_at_thread[thread_id]))),
+                    cached_ins_at_addr[std::get<INS_ADDRESS>(ins_at_thread[thread_id])]->disassemble);
 
 //      if (cached_ins_at_addr[std::get<INS_ADDRESS>(ins_at_thread[thread_id])]->is_syscall) {
 //        tfm::printfln("%d:%s:%s", thread_id,
@@ -696,7 +698,7 @@ static auto insert_ins_get_info_callbacks (INS ins) -> void
   if (cached_ins_at_addr.find(ins_addr) == cached_ins_at_addr.end()) {
     cached_ins_at_addr[ins_addr] = std::make_shared<instruction>(ins);
   }
-//  tfm::format(vtrace_logfile, "%-12s %-40s", normalize_hex_string(StringFromAddrint(ins_addr)),
+//  tfm::printfln("%-12s %-40s", normalize_hex_string(StringFromAddrint(ins_addr)),
 //              cached_ins_at_addr[ins_addr]->disassemble);
 //  vtrace_logfile.flush();
 
@@ -1301,7 +1303,7 @@ auto cap_get_syscall_exit_info (THREADID thread_id, CONTEXT* p_context, SYSCALL_
 /*====================================================================================================================*/
 
 
-static auto cap_ins_mode_get_ins_info (INS ins, VOID* data) -> VOID
+auto cap_ins_mode_get_ins_info (INS ins, VOID* data) -> VOID
 {
   insert_ins_get_info_callbacks(ins);
   return;

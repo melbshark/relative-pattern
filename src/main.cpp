@@ -326,7 +326,9 @@ auto main(int argc, char* argv[]) -> int
 //    TRACE_AddInstrumentFunction(cap_trace_mode_patch_ins_info, UNUSED_DATA);
     TRACE_AddInstrumentFunction(cap_trace_mode_get_ins_info, UNUSED_DATA);
 
-    tfm::printfln("register syscall instruction instrumentation...");
+//    INS_AddInstrumentFunction(cap_ins_mode_get_ins_info, UNUSED_DATA);
+
+//    tfm::printfln("register syscall instruction instrumentation...");
 //    PIN_AddSyscallEntryFunction(cap_get_syscall_entry_info, UNUSED_DATA);
 //    PIN_AddSyscallExitFunction(cap_get_syscall_exit_info, UNUSED_DATA);
 

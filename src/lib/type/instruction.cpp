@@ -55,7 +55,7 @@ instruction::instruction(const INS& ins)
       std::any_of(std::begin(this->dst_registers), std::end(this->dst_registers), is_special_reg) ||
       (this->category == XED_CATEGORY_X87_ALU) || (this->iclass == XED_ICLASS_XEND) || (this->category == XED_CATEGORY_LOGICAL_FP) ||
       (this->iclass == XED_ICLASS_PUSHA) || (this->iclass == XED_ICLASS_PUSHAD) || (this->iclass == XED_ICLASS_PUSHF) ||
-      (this->iclass == XED_ICLASS_PUSHFD) || (this->iclass == XED_ICLASS_PUSHFQ);
+      (this->iclass == XED_ICLASS_PUSHFD) || (this->iclass == XED_ICLASS_PUSHFQ) || (this->iclass == XED_ICLASS_RDTSC);
 
 
   // is memory read, write
