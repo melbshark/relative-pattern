@@ -54,11 +54,9 @@ instruction::instruction(const INS& ins)
   this->is_special = std::any_of(std::begin(this->src_registers), std::end(this->src_registers), is_special_reg) ||
       std::any_of(std::begin(this->dst_registers), std::end(this->dst_registers), is_special_reg) ||
       (this->category == XED_CATEGORY_X87_ALU) || (this->iclass == XED_ICLASS_XEND) || (this->category == XED_CATEGORY_LOGICAL_FP) ||
-      (this->category == XED_ICLASS_PUSHA) || (this->category == XED_ICLASS_PUSHAD) || (this->category == XED_ICLASS_PUSHF) ||
-      (this->category == XED_ICLASS_PUSHFD) || (this->category == XED_ICLASS_PUSHFQ);
-//  if (this->is_special) {
-//  tfm::printfln("special ins");
-//  }
+      (this->iclass == XED_ICLASS_PUSHA) || (this->iclass == XED_ICLASS_PUSHAD) || (this->iclass == XED_ICLASS_PUSHF) ||
+      (this->iclass == XED_ICLASS_PUSHFD) || (this->iclass == XED_ICLASS_PUSHFQ);
+
 
   // is memory read, write
   this->is_memory_read    = INS_IsMemoryRead(ins);

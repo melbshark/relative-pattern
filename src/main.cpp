@@ -1,4 +1,3 @@
-
 #include "parsing_helper.h"
 #include <pin.H>
 
@@ -10,6 +9,7 @@
 #include <boost/algorithm/string.hpp>
 #include <algorithm>
 
+#ifdef _WIN32
 namespace windows
 {
 #include <Windows.h>
@@ -17,6 +17,7 @@ namespace windows
 #include <WinInet.h>
 #include <io.h>
 }
+#endif
 
 #define PIN_INIT_FAILED 1
 #define UNUSED_DATA 0
@@ -53,9 +54,6 @@ KNOB<string> input_file                                       (KNOB_MODE_WRITEON
 KNOB<string> output_file                                      (KNOB_MODE_WRITEONCE, "pintool", "out",
                                                                "trace.msg", "output file, for resulted trace");
 
-KNOB<bool> output_trace_format                                (KNOB_MODE_WRITEONCE, "pintool", "format",
-                                                               "false", "output trace format, 1: protobuf, 0: simple");
-
 const static auto option_default_filename = std::string("9bcbb99f-0eb6-4d28-a876-dea762f5021d");
 KNOB<string> option_file                                      (KNOB_MODE_WRITEONCE, "pintool", "opt",
                                                                "9bcbb99f-0eb6-4d28-a876-dea762f5021d", "option file, for parameter");
@@ -64,9 +62,9 @@ const static auto trace_dot_default_filename = std::string("c33553b1-57ab-4922-9
 KNOB<string> trace_dot_file                                   (KNOB_MODE_WRITEONCE, "pintool", "dot",
                                                                "c33553b1-57ab-4922-99dc-515eb50e5f51", "output dot file, for trace");
 
-const static auto trace_bb_dot_default_filename = std::string("793ded05-53e4-49d2-9d77-faa7f48a4217");
-KNOB<string> trace_bb_dot_file                                (KNOB_MODE_WRITEONCE, "pintool", "dot-bb",
-                                                               "793ded05-53e4-49d2-9d77-faa7f48a4217", "output file, for basic block graph");
+const static auto cfg_dot_default_filename = std::string("793ded05-53e4-49d2-9d77-faa7f48a4217");
+KNOB<string> cfg_dot_file                                (KNOB_MODE_WRITEONCE, "pintool", "cfg",
+                                                               "793ded05-53e4-49d2-9d77-faa7f48a4217", "output file, for basic block control flow graph");
 
 const static auto trace_bb_default_filename = std::string("0acc4fd8-acca-418c-9384-d0dd60ac85c9");
 KNOB<string> trace_bb_file                                    (KNOB_MODE_WRITEONCE, "pintool", "trace-bb",
@@ -77,7 +75,7 @@ KNOB<string> virtual_trace_file                               (KNOB_MODE_WRITEON
                                                                "793ded05-0eb6-4d28-a876-d0dd60ac85c9", "output file, for virtual trace");
 
 //execute program with, for example:
-//pin.exe -t vtrace.dll -opt app.opt -out app.trace -dot app.dot -dot-bb app_bb.dot -trace-bb app_bb.trace -trace-virt app_virt.trace -- app.exe
+//pin.exe -t vtrace.dll -opt app.opt -out app.trace -cfg app_cfg.dot -trace-bb app_bb.trace -trace-virt app_virt.trace -- app.exe
 
 /*====================================================================================================================*/
 /*                                                     support functions                                              */
@@ -254,16 +252,16 @@ auto stop_pin (INT32 code, VOID* data) -> VOID
 {
   tfm::printfln("save results...");
 
-  cap_save_trace_to_file(output_file.Value(), output_trace_format.Value());
+  cap_save_trace_to_file(output_file.Value());
 
   if (trace_dot_file.Value() != trace_dot_default_filename) {
     tfm::printfln("save trace to dot file %s...", trace_dot_file.Value());
     cap_save_trace_to_dot_file(trace_dot_file.Value());
   }
 
-  if (trace_bb_dot_file.Value() != trace_bb_dot_default_filename) {
-    tfm::printfln("save basic block CFG to dot file %s...", trace_bb_dot_file.Value());
-    cap_save_basic_block_trace_to_dot_file(trace_bb_dot_file.Value());
+  if (cfg_dot_file.Value() != cfg_dot_default_filename) {
+    tfm::printfln("save basic block CFG to dot file %s...", cfg_dot_file.Value());
+    cap_save_basic_block_cfg_to_dot_file(cfg_dot_file.Value());
   }
 
   if (trace_bb_file.Value() != trace_bb_default_filename) {
@@ -281,12 +279,14 @@ auto stop_pin (INT32 code, VOID* data) -> VOID
 
 auto reattach_console () -> void
 {
+#ifdef _WIN32
   if (windows::AttachConsole((windows::DWORD) - 1)) {
     auto hCrt = windows::_open_osfhandle((long)windows::GetStdHandle((windows::DWORD) - 11), 0);
     auto hf = _fdopen(hCrt, "w");
     *stdout = *hf;
     setvbuf(stdout, NULL, _IONBF, 0);
   }
+#endif
   return;
 }
 
