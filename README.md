@@ -5,4 +5,4 @@ A tool for recovering program control flow graph from binaries obfuscated by
 * [Code Virtualizer](http://oreans.com/)
 * [O-LLVM](https://github.com/obfuscator-llvm/obfuscator)
 
-The code is in active development and difficult to use. Currently there is no documentation (please contact me if you are interested in). I try also to prepare a paper (there are lots of thing to be done).
+The code is in active development and difficult to use. The modules of the concolic execution engine are not published yet (but the current published code can work with any concolic engine). Currently there is no documentation (please contact me if you are interested in). I try also to prepare a paper (there are lots of thing to be done).
