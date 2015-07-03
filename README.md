@@ -16,7 +16,7 @@ The tool is written mostly in C++ and OCaml, and uses the following softwares:
 Demo:
 The following function contains a basic control structure
 ````C++
-int msign(int x, int y) 
+int gt(int x, int y) 
 {
   if (x > y) return 1;
   else return 0;
