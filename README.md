@@ -24,13 +24,13 @@ int msign(int x)
 }
 ```
 The control flow graph of its binary code is as follow:
-![alt tag](demo/rescfg_bb.pdf)
+![Original](demo/rescfg_bb.pdf)
 
-The virtualization transformation of Tigress transforms this CFG into
-![alt tag](demo/rescfg_switch_bb.pdf)
+The virtualization transformation of Tigress deforms this CFG into
+![Tigress](demo/rescfg_switch_bb.pdf)
 
-of one of VMProtect gives
-![alt tag](demo/rescfg_vmprotect_bb.pdf)
+or one of VMProtect gives
+![VMProtect](demo/rescfg_vmprotect_bb.pdf)
 
 The tool, given any obfuscated binary, can recover the original CFG as
-![alt tag](demo/rescfg_virtual.pdf)
+![Recover](demo/rescfg_virtual.pdf)
