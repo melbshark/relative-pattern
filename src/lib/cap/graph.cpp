@@ -11,6 +11,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/graphviz.hpp>
+#include <boost/progress.hpp>
 
 #include <pin.H>
 
@@ -220,8 +221,6 @@ static auto compress_graph_from_pivot_vertex (bb_vertex_desc_t pivot_vertex) -> 
   boost::remove_out_edge_if(next_vertex, [](bb_edge_desc_t edge_desc) { return true; }, internal_bb_graph);
 
   boost::remove_vertex(next_vertex, internal_bb_graph);
-//  tfm::printfln("compress");
-
   return;
 }
 
@@ -397,7 +396,7 @@ static auto construct_bb_graph () -> void
 
   tfm::printfln("compressing basic block graph...");
   do {
-    tfm::printfln("number of vertices: %d", boost::num_vertices(internal_bb_graph));
+//    tfm::printfln("number of vertices: %d", boost::num_vertices(internal_bb_graph));
     auto pivot_vertex_desc = find_pivot_vertex();
     if (pivot_vertex_desc != bb_graph_t::null_vertex()) {
       compress_graph_from_pivot_vertex(pivot_vertex_desc);
