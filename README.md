@@ -13,8 +13,7 @@ The tool is written mostly in C++ and OCaml, and uses the following softwares:
 * [Pin](https://software.intel.com/en-us/articles/pin-a-dynamic-binary-instrumentation-tool)
 * [Protocol Buffers](https://github.com/google/protobuf)
 
-Demo:
-The following function contains a basic control structure
+Demo: the following function contains a basic control structure
 ````C++
 int gt(int x, int y) 
 {
