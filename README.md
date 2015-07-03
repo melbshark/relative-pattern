@@ -1,5 +1,5 @@
 # relative-pattern
-A tool for recovering program control flow graph from binaries obfuscated by
+This is a tool experimenting a *formal method* for recovering program control flow graph from binaries obfuscated by
 * [Tigress](http://tigress.cs.arizona.edu/)
 * [VMProtect](http://vmpsoft.com/)
 * [Code Virtualizer](http://oreans.com/)
