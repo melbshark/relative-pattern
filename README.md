@@ -21,14 +21,9 @@ int gt(int x, int y)
   else return 0;
 }
 ```
-The control flow graph of its binary code is as follow:
-![Original](demo/rescfg_bb.pdf)
-
-The virtualization transformation of Tigress deforms this CFG into
-![Tigress](demo/rescfg_switch_bb.pdf)
-
-or one of VMProtect gives
-![VMProtect](demo/rescfg_vmprotect_bb.pdf)
+The control flow graph of its binary code is as follow: ![Original](demo/rescfg_bb.pdf).
+The virtualization transformation of Tigress deforms this CFG into: ![Tigress](demo/rescfg_switch_bb.pdf).
+or one of VMProtect gives: ![VMProtect](demo/rescfg_vmprotect_bb.pdf).
 
 The tool, given any obfuscated binary, can recover the original CFG as
 ![Recover](demo/rescfg_virtual.pdf)
