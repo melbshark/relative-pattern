@@ -9,6 +9,6 @@ The code is in active development and difficult to use. The modules of the conco
 
 The tool is written mostly in C++ and OCaml, and uses the following softwares:
 * [ELFIO](https://github.com/serge1/ELFIO)
-* [tinyformat](https://github.com/c42f/tinyformat)
+* [Type safe printf](https://github.com/c42f/tinyformat)
 * [Pin](https://software.intel.com/en-us/articles/pin-a-dynamic-binary-instrumentation-tool)
 * [Protocol Buffers](https://github.com/google/protobuf)
