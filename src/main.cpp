@@ -252,7 +252,7 @@ auto stop_pin (INT32 code, VOID* data) -> VOID
 {
   tfm::printfln("save results...");
 
-  tfm::printfln("==== Trace (output file: %s)...", output_file.Value());
+  tfm::printfln("==== Traces (output file: %s)...", output_file.Value());
   cap_save_trace_to_file(output_file.Value());
 
   if (trace_dot_file.Value() != trace_dot_default_filename) {

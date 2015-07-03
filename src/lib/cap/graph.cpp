@@ -377,7 +377,7 @@ static auto construct_bb_graph () -> void
 //      }
 //    }
 
-  tfm::printfln("initializing basic block graph from trace...");
+  tfm::printfln("initializing basic block graph from virtual traces...");
   auto prev_bb_desc = bb_graph_t::null_vertex();
   for (const auto& inst : trace) {
     auto ins_addr = std::get<INS_ADDRESS>(inst);
@@ -760,6 +760,28 @@ static auto write_cfg_vertex (std::ostream& label, bb_vertex_desc_t vertex_desc)
 }
 
 
+static auto write_cfg_thumbnail_vertex (std::ostream& label, bb_vertex_desc_t vertex_desc) -> void
+{
+  if (is_first_bb(vertex_desc)) {
+      tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=cornflowerblue,label=\"");
+  }
+  else if (boost::out_degree(vertex_desc, internal_bb_graph) == 0) {
+    tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=gainsboro,label=\"");
+  }
+  else if (boost::in_degree(vertex_desc, internal_bb_graph) > 2) {
+    tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=darkorchid1,label=\"");
+  }
+  else if (boost::out_degree(vertex_desc, internal_bb_graph) > 2) {
+    tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=darkgoldenrod1,label=\"");
+  }
+  else tfm::format(label, "[shape=box,style=rounded,label=\"");
+
+  tfm::format(label, "%d", std::get<BB_ORDER>(internal_bb_graph[vertex_desc]));
+  tfm::format(label, "\",fontname=\"Inconsolata\",fontsize=10.0]");
+  return;
+}
+
+
 static auto write_cfg_edge (std::ostream& label, bb_edge_desc_t edge_desc) -> void 
 {
   tfm::format(label, "[label=\"\"]");
@@ -784,7 +806,7 @@ auto cap_save_basic_block_cfg_to_dot_file (const std::string& filename)  -> void
 
     tfm::printfln("saving basic block graph...");
     boost::write_graphviz(output_file, internal_bb_graph,
-                          std::bind(write_cfg_vertex, std::placeholders::_1, std::placeholders::_2),
+                          std::bind(write_cfg_thumbnail_vertex, std::placeholders::_1, std::placeholders::_2),
                           std::bind(write_cfg_edge, std::placeholders::_1, std::placeholders::_2));
     output_file.close();
   }
