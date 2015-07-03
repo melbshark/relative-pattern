@@ -74,9 +74,24 @@ auto normalize_hex_string (const std::string& input) -> std::string
   return ("0x" + output);
 }
 
+
+static auto find_vertex (tr_vertex_t vertex_value) -> tr_vertex_iter_t 
+{
+  auto first_vertex_iter = tr_vertex_iter_t();
+  auto last_vertex_iter  = tr_vertex_iter_t();
+  std::tie(first_vertex_iter, last_vertex_iter) = boost::vertices(internal_graph);
+
+  auto found_vertex_iter = last_vertex_iter;
+  for (found_vertex_iter = first_vertex_iter; found_vertex_iter != last_vertex_iter; ++found_vertex_iter) {
+    if (internal_graph[*found_vertex_iter] == vertex_value) break;
+  }
+
+  return found_vertex_iter;
+}
+
 auto construct_graph_from_trace () -> void
 {
-  auto find_vertex = [](tr_vertex_t vertex_value) -> tr_vertex_iter_t {
+  /*auto find_vertex = [](tr_vertex_t vertex_value) -> tr_vertex_iter_t {
     auto first_vertex_iter = tr_vertex_iter_t();
     auto last_vertex_iter  = tr_vertex_iter_t();
     std::tie(first_vertex_iter, last_vertex_iter) = boost::vertices(internal_graph);
@@ -87,7 +102,7 @@ auto construct_graph_from_trace () -> void
     }
 
     return found_vertex_iter;
-  };
+  };*/
 
   auto prev_vertex_desc = tr_graph_t::null_vertex();
   for (const auto& inst : trace) {
@@ -310,6 +325,20 @@ static auto numbering_bb_graph () -> void
 }
 
 
+static auto get_tr_vertex_desc (tr_vertex_t addr) -> tr_vertex_desc_t 
+{
+  auto first_vertex_iter = tr_vertex_iter_t();
+  auto last_vertex_iter = tr_vertex_iter_t();
+
+  std::tie(first_vertex_iter, last_vertex_iter) = boost::vertices(internal_graph);
+
+  for (auto vertex_iter = first_vertex_iter; vertex_iter != last_vertex_iter; ++vertex_iter) {
+    if (internal_graph[*vertex_iter] == addr) return *vertex_iter;
+  }
+  return tr_graph_t::null_vertex();
+}
+
+
 static auto construct_bb_graph () -> void
 {
   auto first_vertex_iter = tr_vertex_iter_t();
@@ -325,18 +354,7 @@ static auto construct_bb_graph () -> void
 
   std::tie(first_bb_vertex_iter, last_bb_vertex_iter) = boost::vertices(internal_bb_graph);
 
-  auto get_tr_vertex_desc = [](tr_vertex_t addr)  -> tr_vertex_desc_t
-  {
-    auto first_vertex_iter = tr_vertex_iter_t();
-    auto last_vertex_iter = tr_vertex_iter_t();
-
-    std::tie(first_vertex_iter, last_vertex_iter) = boost::vertices(internal_graph);
-    for (auto vertex_iter = first_vertex_iter; vertex_iter != last_vertex_iter; ++vertex_iter) {
-      if (internal_graph[*vertex_iter] == addr) return *vertex_iter;
-    }
-    return tr_graph_t::null_vertex();
-  };
-
+  tfm::printfln("initializing basic block graph...");
   for (auto src_bb_vertex_iter = first_bb_vertex_iter; src_bb_vertex_iter != last_bb_vertex_iter; ++src_bb_vertex_iter)
     for (auto dst_bb_vertex_iter = first_bb_vertex_iter; dst_bb_vertex_iter != last_bb_vertex_iter; ++dst_bb_vertex_iter) {
 
@@ -349,7 +367,9 @@ static auto construct_bb_graph () -> void
       }
     }
 
+  tfm::printfln("compressing basic block graph...");
   do {
+    tfm::printfln("number of vertices in basic block graph: %d", boost::num_vertices(internal_bb_graph));
     auto pivot_vertex_desc = find_pivot_vertex();
     if (pivot_vertex_desc != bb_graph_t::null_vertex()) {
       compress_graph_from_pivot_vertex(pivot_vertex_desc);
@@ -677,47 +697,51 @@ auto cap_save_trace_to_dot_file (const std::string& filename) -> void
 }
 
 
+static auto write_cfg_vertex (std::ostream& label, bb_vertex_desc_t vertex_desc) -> void 
+{
+  if (is_first_bb(vertex_desc)) {
+      tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=cornflowerblue,label=\"");
+  }
+  else if (boost::out_degree(vertex_desc, internal_bb_graph) == 0) {
+    tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=gainsboro,label=\"");
+  }
+  else if (boost::in_degree(vertex_desc, internal_bb_graph) > 2) {
+    tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=darkorchid1,label=\"");
+  }
+  else if (boost::out_degree(vertex_desc, internal_bb_graph) > 2) {
+    tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=darkgoldenrod1,label=\"");
+  }
+  else tfm::format(label, "[shape=box,style=rounded,label=\"");
+
+  tfm::format(label, "%d\n", std::get<BB_ORDER>(internal_bb_graph[vertex_desc]));
+  for (const auto& addr : std::get<BB_ADDRESSES>(internal_bb_graph[vertex_desc])) {
+    /*if (std::addressof(addr) == std::addressof(internal_bb_graph[vertex_desc].back())) {
+      tfm::format(label, "%-12s %-s", StringFromAddrint(addr), cached_ins_at_addr[addr]->disassemble);
+    }
+    else*/
+    tfm::format(label, "%-12s %-s\\l", normalize_hex_string(StringFromAddrint(addr)), cached_ins_at_addr[addr]->disassemble);
+  }
+  tfm::format(label, "\",fontname=\"Inconsolata\",fontsize=10.0]");
+
+  return;  
+}
+
+
+static auto write_cfg_edge (std::ostream& label, bb_edge_desc_t edge_desc) -> void 
+{
+  tfm::format(label, "[label=\"\"]");
+  return;
+}
+
+
 auto cap_save_basic_block_cfg_to_dot_file (const std::string& filename)  -> void
 {
-  auto write_vertex = [](std::ostream& label, bb_vertex_desc_t vertex_desc) -> void {
-
-    if (is_first_bb(vertex_desc)) {
-      tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=cornflowerblue,label=\"");
-    }
-    else if (boost::out_degree(vertex_desc, internal_bb_graph) == 0) {
-      tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=gainsboro,label=\"");
-    }
-    else if (boost::in_degree(vertex_desc, internal_bb_graph) > 2) {
-      tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=darkorchid1,label=\"");
-    }
-    else if (boost::out_degree(vertex_desc, internal_bb_graph) > 2) {
-      tfm::format(label, "[shape=box,style=\"filled,rounded\",fillcolor=darkgoldenrod1,label=\"");
-    }
-    else tfm::format(label, "[shape=box,style=rounded,label=\"");
-
-    tfm::format(label, "%d\n", std::get<BB_ORDER>(internal_bb_graph[vertex_desc]));
-    for (const auto& addr : std::get<BB_ADDRESSES>(internal_bb_graph[vertex_desc])) {
-      /*if (std::addressof(addr) == std::addressof(internal_bb_graph[vertex_desc].back())) {
-        tfm::format(label, "%-12s %-s", StringFromAddrint(addr), cached_ins_at_addr[addr]->disassemble);
-      }
-      else*/
-      tfm::format(label, "%-12s %-s\\l", normalize_hex_string(StringFromAddrint(addr)), cached_ins_at_addr[addr]->disassemble);
-    }
-//    tfm::format(label, "\",fontname=Courier,fontsize=10.0]");
-    tfm::format(label, "\",fontname=\"Inconsolata\",fontsize=10.0]");
-
-    return;
-  };
-
-  auto write_edge = [](std::ostream& label, bb_edge_desc_t edge_desc) -> void {
-    tfm::format(label, "[label=\"\"]");
-    return;
-  };
-
   try {
     if (trace.empty()) throw 1;
     if (boost::num_vertices(internal_graph) == 0) construct_graph_from_trace();
     if (boost::num_vertices(internal_graph) == 0) throw 2;
+
+    tfm::printfln("constructing basic block graph...");
 
     construct_bb_graph();
     if (boost::num_vertices(internal_bb_graph) == 0) throw 3;
@@ -725,9 +749,10 @@ auto cap_save_basic_block_cfg_to_dot_file (const std::string& filename)  -> void
     ofstream output_file(filename.c_str(), std::ofstream::out | std::ofstream::trunc);
     if (!output_file.is_open()) throw 4;
 
+    tfm::printfln("saving basic block graph...");
     boost::write_graphviz(output_file, internal_bb_graph,
-                          std::bind(write_vertex, std::placeholders::_1, std::placeholders::_2),
-                          std::bind(write_edge, std::placeholders::_1, std::placeholders::_2));
+                          std::bind(write_cfg_vertex, std::placeholders::_1, std::placeholders::_2),
+                          std::bind(write_cfg_edge, std::placeholders::_1, std::placeholders::_2));
     output_file.close();
   }
   catch (int excpt) {

@@ -252,20 +252,21 @@ auto stop_pin (INT32 code, VOID* data) -> VOID
 {
   tfm::printfln("save results...");
 
+  tfm::printfln("==== Trace (output file: %s)...", output_file.Value());
   cap_save_trace_to_file(output_file.Value());
 
   if (trace_dot_file.Value() != trace_dot_default_filename) {
-    tfm::printfln("save trace to dot file %s...", trace_dot_file.Value());
+    tfm::printfln("==== save trace to dot file %s...", trace_dot_file.Value());
     cap_save_trace_to_dot_file(trace_dot_file.Value());
   }
 
   if (cfg_dot_file.Value() != cfg_dot_default_filename) {
-    tfm::printfln("save basic block CFG to dot file %s...", cfg_dot_file.Value());
+    tfm::printfln("==== Basic block CFG (output file: %s)...", cfg_dot_file.Value());
     cap_save_basic_block_cfg_to_dot_file(cfg_dot_file.Value());
   }
 
   if (trace_bb_file.Value() != trace_bb_default_filename) {
-    tfm::printfln("save basic block trace to file %s...", trace_bb_file.Value());
+    tfm::printfln("==== Basic block trace (output file: %s)...", trace_bb_file.Value());
     cap_save_basic_block_trace_to_file(trace_bb_file.Value());
   }
 

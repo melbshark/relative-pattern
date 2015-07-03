@@ -184,7 +184,7 @@ static auto update_condition (ADDRINT ins_addr, THREADID thread_id) -> void
 
 //  tfm::printfln("size of thread array at beginning %d", ins_at_thread.size());
 
-  if (ins_addr == 0x639219) tfm::printfln("call detect, thread_id: %d, event = %d\n", thread_id, event);
+  //if (ins_addr == 0x639219) tfm::printfln("call detect, thread_id: %d, event = %d\n", thread_id, event);
 
   switch (event) {
   case NEW_THREAD:
@@ -274,7 +274,7 @@ static auto initialize_instruction (ADDRINT ins_addr, THREADID thread_id) -> voi
   if ((state_of_thread[thread_id] == ENABLED) ||
       ((state_of_thread[thread_id] == SELECTIVE_SUSPENDED) && (cached_ins_at_addr[ins_addr]->is_syscall))) {
 
-    tfm::printfln("initialize instruction of thread %d at %s", thread_id, StringFromAddrint(ins_addr));
+//    tfm::printfln("initialize instruction of thread %d at %s", thread_id, StringFromAddrint(ins_addr));
     ins_at_thread[thread_id] = dyn_ins_t(ins_addr,      // instruction address
                                          thread_id,     // thread id
                                          dyn_regs_t(),  // read registers
@@ -313,7 +313,8 @@ static auto save_register (const CONTEXT* p_context, THREADID thread_id) -> void
     auto ins_addr = std::get<INS_ADDRESS>(ins_at_thread[thread_id]);
     const auto & current_ins = cached_ins_at_addr[ins_addr];
 
-    tfm::printfln("%s:%s:%d:%d\n", StringFromAddrint(ins_addr), current_ins->disassemble, current_ins->iclass, XED_ICLASS_PUSHAD);
+//    tfm::printfln("%s:%s instruction class number: %d\n",
+//                  StringFromAddrint(ins_addr), current_ins->disassemble, current_ins->iclass);
 
     if (((state_of_thread[thread_id] == ENABLED) && !current_ins->is_special) ||
         ((state_of_thread[thread_id] == SELECTIVE_SUSPENDED) && current_ins->is_syscall)) {
@@ -481,8 +482,8 @@ static auto add_to_trace (THREADID thread_id) -> void
          cached_ins_at_addr[std::get<INS_ADDRESS>(ins_at_thread[thread_id])]->is_syscall)) {
 
       trace.push_back(ins_at_thread[thread_id]);
-      tfm::printfln("%-12s %-40s", normalize_hex_string(StringFromAddrint(std::get<INS_ADDRESS>(ins_at_thread[thread_id]))),
-                    cached_ins_at_addr[std::get<INS_ADDRESS>(ins_at_thread[thread_id])]->disassemble);
+      /*tfm::printfln("%-12s %-40s", normalize_hex_string(StringFromAddrint(std::get<INS_ADDRESS>(ins_at_thread[thread_id]))),
+                    cached_ins_at_addr[std::get<INS_ADDRESS>(ins_at_thread[thread_id])]->disassemble);*/
 
 //      if (cached_ins_at_addr[std::get<INS_ADDRESS>(ins_at_thread[thread_id])]->is_syscall) {
 //        tfm::printfln("%d:%s:%s", thread_id,
