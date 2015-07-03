@@ -369,11 +369,10 @@ static auto construct_bb_graph () -> void
 
   tfm::printfln("compressing basic block graph...");
   do {
-    tfm::printfln("number of vertices in basic block graph: %d", boost::num_vertices(internal_bb_graph));
+    tfm::printfln("number of vertices: %d", boost::num_vertices(internal_bb_graph));
     auto pivot_vertex_desc = find_pivot_vertex();
     if (pivot_vertex_desc != bb_graph_t::null_vertex()) {
       compress_graph_from_pivot_vertex(pivot_vertex_desc);
-//      break;
     }
     else break;
   }
