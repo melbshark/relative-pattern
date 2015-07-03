@@ -150,52 +150,54 @@ static auto is_first_bb (bb_vertex_desc_t vertex_desc) -> bool
 }
 
 
+static auto is_pivot_vertex (bb_vertex_desc_t vertex_desc) -> bool
+{
+  if (!is_loopback_vertex(vertex_desc)) {
+    auto in_degree = boost::in_degree(vertex_desc, internal_bb_graph);
+    auto out_degree = boost::out_degree(vertex_desc, internal_bb_graph);
+
+    if (out_degree == 1) {
+      auto out_edge_iter = bb_graph_t::out_edge_iterator();
+      std::tie(out_edge_iter, std::ignore) = boost::out_edges(vertex_desc, internal_bb_graph);
+
+      auto next_vertex = boost::target(*out_edge_iter, internal_bb_graph);
+
+      if ((boost::in_degree(next_vertex, internal_bb_graph) == 1) && !is_loopback_vertex(next_vertex) && !is_first_bb(next_vertex)) {
+
+        if ((in_degree == 0) || (in_degree >= 2)) { // pivot found
+          return true;
+        }
+        else {
+          auto in_edge_iter = bb_graph_t::in_edge_iterator();
+          std::tie(in_edge_iter, std::ignore) = boost::in_edges(vertex_desc, internal_bb_graph);
+
+          auto prev_vertex = boost::source(*in_edge_iter, internal_bb_graph);
+          if (boost::out_degree(prev_vertex, internal_bb_graph) >= 2) // pivot found
+            return (is_loopback_vertex(prev_vertex) || (boost::out_degree(prev_vertex, internal_bb_graph) >= 2));
+          else return is_first_bb(vertex_desc);
+        }
+      }
+      else return false;
+    }
+    else return false;
+  }
+  return false;
+}
+
+
 static auto find_pivot_vertex () -> bb_vertex_desc_t
 {
   auto first_vertex_iter = bb_vertex_iter_t();
   auto last_vertex_iter  = bb_vertex_iter_t();
   std::tie(first_vertex_iter, last_vertex_iter) = boost::vertices(internal_bb_graph);
 
-  auto found_vertex_iter = std::find_if(first_vertex_iter, last_vertex_iter, [](bb_vertex_desc_t current_vertex)
-  {
-    if (!is_loopback_vertex(current_vertex)) {
-      auto in_degree = boost::in_degree(current_vertex, internal_bb_graph);
-      auto out_degree = boost::out_degree(current_vertex, internal_bb_graph);
-
-      if (out_degree == 1) {
-        auto out_edge_iter = bb_graph_t::out_edge_iterator();
-        std::tie(out_edge_iter, std::ignore) = boost::out_edges(current_vertex, internal_bb_graph);
-
-        auto next_vertex = boost::target(*out_edge_iter, internal_bb_graph);
-
-        if ((boost::in_degree(next_vertex, internal_bb_graph) == 1) && !is_loopback_vertex(next_vertex) && !is_first_bb(next_vertex)) {
-
-          if ((in_degree == 0) || (in_degree >= 2)) { // pivot found
-            return true;
-          }
-          else {
-            auto in_edge_iter = bb_graph_t::in_edge_iterator();
-            std::tie(in_edge_iter, std::ignore) = boost::in_edges(current_vertex, internal_bb_graph);
-
-            auto prev_vertex = boost::source(*in_edge_iter, internal_bb_graph);
-            if (boost::out_degree(prev_vertex, internal_bb_graph) >= 2) // pivot found
-              return (is_loopback_vertex(prev_vertex) || (boost::out_degree(prev_vertex, internal_bb_graph) >= 2));
-            else return is_first_bb(current_vertex);
-          }
-        }
-        else return false;
-      }
-      else return false;
-    }
-    return false;
-  });
-
+  auto found_vertex_iter = std::find_if(first_vertex_iter, last_vertex_iter, is_pivot_vertex);
   if (found_vertex_iter != last_vertex_iter) return *found_vertex_iter;
   else return bb_graph_t::null_vertex();
 }
 
 
-static auto compress_graph_from_pivot_vertex (bb_vertex_desc_t pivot_vertex) -> void
+static auto compress_graph_from_pivot_vertex (bb_vertex_desc_t pivot_vertex) -> bb_vertex_desc_t
 {
   auto out_edge_iter = bb_graph_t::out_edge_iterator();
   std::tie(out_edge_iter, std::ignore) = boost::out_edges(pivot_vertex, internal_bb_graph);
@@ -221,7 +223,7 @@ static auto compress_graph_from_pivot_vertex (bb_vertex_desc_t pivot_vertex) -> 
   boost::remove_out_edge_if(next_vertex, [](bb_edge_desc_t edge_desc) { return true; }, internal_bb_graph);
 
   boost::remove_vertex(next_vertex, internal_bb_graph);
-  return;
+  return pivot_vertex;
 }
 
 
@@ -395,11 +397,16 @@ static auto construct_bb_graph () -> void
   }
 
   tfm::printfln("compressing basic block graph...");
+  auto compress_progress = boost::progress_display(boost::num_vertices(internal_bb_graph));
+  auto pivot_vertex_desc = bb_graph_t::null_vertex();
   do {
 //    tfm::printfln("number of vertices: %d", boost::num_vertices(internal_bb_graph));
-    auto pivot_vertex_desc = find_pivot_vertex();
+    ++compress_progress;
+    if ((pivot_vertex_desc == bb_graph_t::null_vertex()) || !is_pivot_vertex(pivot_vertex_desc))
+      pivot_vertex_desc = find_pivot_vertex();
+
     if (pivot_vertex_desc != bb_graph_t::null_vertex()) {
-      compress_graph_from_pivot_vertex(pivot_vertex_desc);
+      pivot_vertex_desc = compress_graph_from_pivot_vertex(pivot_vertex_desc);
     }
     else break;
   }
