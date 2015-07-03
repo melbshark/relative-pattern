@@ -168,8 +168,8 @@ static auto find_pivot_vertex () -> bb_vertex_desc_t
         auto next_vertex = boost::target(*out_edge_iter, internal_bb_graph);
 
         if ((boost::in_degree(next_vertex, internal_bb_graph) == 1) && !is_loopback_vertex(next_vertex) && !is_first_bb(next_vertex)) {
-          if ((in_degree == 0) || (in_degree >= 2)) {
-//            tfm::printfln("pivot found");
+
+          if ((in_degree == 0) || (in_degree >= 2)) { // pivot found
             return true;
           }
           else {
@@ -177,8 +177,7 @@ static auto find_pivot_vertex () -> bb_vertex_desc_t
             std::tie(in_edge_iter, std::ignore) = boost::in_edges(current_vertex, internal_bb_graph);
 
             auto prev_vertex = boost::source(*in_edge_iter, internal_bb_graph);
-            if (boost::out_degree(prev_vertex, internal_bb_graph) >= 2)
-//              tfm::printfln("pivot found s");
+            if (boost::out_degree(prev_vertex, internal_bb_graph) >= 2) // pivot found
               return (is_loopback_vertex(prev_vertex) || (boost::out_degree(prev_vertex, internal_bb_graph) >= 2));
             else return is_first_bb(current_vertex);
           }
@@ -235,11 +234,7 @@ struct node_numbering_visitor : public boost::default_bfs_visitor
 
   void discover_vertex(bb_vertex_desc_t vertex_desc, const bb_graph_t& graph)
   {
-//    if (std::get<NODE_ORDER>(graph[vertex_desc]) == -1) {
-//      linear_visited_bbs.push_back(vertex_desc);
-//    }
     linear_visited_bbs.push_back(vertex_desc);
-//    tfm::printfln("blah");
     return;
   }
 };
@@ -265,7 +260,8 @@ static auto numbering_from_vertex (bb_vertex_desc_t current_vertex) -> void
   }
 
   // deciding order of traversing
-  std::stable_sort(std::begin(next_unnumbered_vertices), std::end(next_unnumbered_vertices), [](bb_vertex_desc_t va, bb_vertex_desc_t vb)
+  std::stable_sort(
+        std::begin(next_unnumbered_vertices), std::end(next_unnumbered_vertices), [](bb_vertex_desc_t va, bb_vertex_desc_t vb)
   {
     return (std::get<BB_ADDRESSES>(internal_bb_graph[va]).front() < std::get<BB_ADDRESSES>(internal_bb_graph[vb]).front());
   });
@@ -339,33 +335,65 @@ static auto get_tr_vertex_desc (tr_vertex_t addr) -> tr_vertex_desc_t
 }
 
 
+static auto get_bb_vertex_desc (tr_vertex_t addr) -> bb_vertex_desc_t
+{
+  auto first_vertex_iter = bb_vertex_iter_t();
+  auto last_vertex_iter = bb_vertex_iter_t();
+
+  std::tie(first_vertex_iter, last_vertex_iter) = boost::vertices(internal_bb_graph);
+  for (auto vertex_iter = first_vertex_iter; vertex_iter != last_vertex_iter; ++vertex_iter) {
+    if (std::get<1>(internal_bb_graph[*vertex_iter]).front() == addr) return *vertex_iter;
+  }
+  return bb_graph_t::null_vertex();
+}
+
+
 static auto construct_bb_graph () -> void
 {
-  auto first_vertex_iter = tr_vertex_iter_t();
-  auto last_vertex_iter = tr_vertex_iter_t();
+//  auto first_vertex_iter = tr_vertex_iter_t();
+//  auto last_vertex_iter = tr_vertex_iter_t();
 
-  std::tie(first_vertex_iter, last_vertex_iter) = boost::vertices(internal_graph);
-  for (auto vertex_iter = first_vertex_iter; vertex_iter != last_vertex_iter; ++vertex_iter) {
-    boost::add_vertex(bb_vertex_t(-1, tr_vertices_t{internal_graph[*vertex_iter]}), internal_bb_graph);
-  }
+//  std::tie(first_vertex_iter, last_vertex_iter) = boost::vertices(internal_graph);
+//  for (auto vertex_iter = first_vertex_iter; vertex_iter != last_vertex_iter; ++vertex_iter) {
+//    boost::add_vertex(bb_vertex_t(-1, tr_vertices_t{internal_graph[*vertex_iter]}), internal_bb_graph);
+//  }
 
-  auto first_bb_vertex_iter = bb_vertex_iter_t();
-  auto last_bb_vertex_iter = bb_vertex_iter_t();
+//  auto first_bb_vertex_iter = bb_vertex_iter_t();
+//  auto last_bb_vertex_iter = bb_vertex_iter_t();
 
-  std::tie(first_bb_vertex_iter, last_bb_vertex_iter) = boost::vertices(internal_bb_graph);
+//  std::tie(first_bb_vertex_iter, last_bb_vertex_iter) = boost::vertices(internal_bb_graph);
 
-  tfm::printfln("initializing basic block graph...");
-  for (auto src_bb_vertex_iter = first_bb_vertex_iter; src_bb_vertex_iter != last_bb_vertex_iter; ++src_bb_vertex_iter)
-    for (auto dst_bb_vertex_iter = first_bb_vertex_iter; dst_bb_vertex_iter != last_bb_vertex_iter; ++dst_bb_vertex_iter) {
+//  tfm::printfln("initializing basic block graph...");
+//  for (auto src_bb_vertex_iter = first_bb_vertex_iter; src_bb_vertex_iter != last_bb_vertex_iter; ++src_bb_vertex_iter)
+//    for (auto dst_bb_vertex_iter = first_bb_vertex_iter; dst_bb_vertex_iter != last_bb_vertex_iter; ++dst_bb_vertex_iter) {
 
-      auto src_tr_vertex_desc = get_tr_vertex_desc(std::get<BB_ADDRESSES>(internal_bb_graph[*src_bb_vertex_iter]).front());
-      auto dst_tr_vertex_desc = get_tr_vertex_desc(std::get<BB_ADDRESSES>(internal_bb_graph[*dst_bb_vertex_iter]).front());
+//      auto src_tr_vertex_desc = get_tr_vertex_desc(std::get<BB_ADDRESSES>(internal_bb_graph[*src_bb_vertex_iter]).front());
+//      auto dst_tr_vertex_desc = get_tr_vertex_desc(std::get<BB_ADDRESSES>(internal_bb_graph[*dst_bb_vertex_iter]).front());
 
-      if (std::get<1>(boost::edge(src_tr_vertex_desc, dst_tr_vertex_desc, internal_graph)) &&
-          !std::get<1>(boost::edge(*src_bb_vertex_iter, *dst_bb_vertex_iter, internal_bb_graph))) {
-        boost::add_edge(*src_bb_vertex_iter, *dst_bb_vertex_iter, internal_bb_graph);
+//      if (std::get<1>(boost::edge(src_tr_vertex_desc, dst_tr_vertex_desc, internal_graph)) &&
+//          !std::get<1>(boost::edge(*src_bb_vertex_iter, *dst_bb_vertex_iter, internal_bb_graph))) {
+//        boost::add_edge(*src_bb_vertex_iter, *dst_bb_vertex_iter, internal_bb_graph);
+//      }
+//    }
+
+  tfm::printfln("initializing basic block graph from trace...");
+  auto prev_bb_desc = bb_graph_t::null_vertex();
+  for (const auto& inst : trace) {
+    auto ins_addr = std::get<INS_ADDRESS>(inst);
+
+    auto curr_bb_desc = get_bb_vertex_desc(ins_addr);
+    if (curr_bb_desc == bb_graph_t::null_vertex()) {
+      curr_bb_desc = boost::add_vertex(bb_vertex_t(-1, tr_vertices_t{ins_addr}), internal_bb_graph);
+    }
+
+    if (prev_bb_desc != bb_graph_t::null_vertex()) {
+      if (!std::get<1>(boost::edge(prev_bb_desc, curr_bb_desc, internal_bb_graph))) {
+        boost::add_edge(prev_bb_desc, curr_bb_desc, internal_bb_graph);
       }
     }
+
+    prev_bb_desc = curr_bb_desc;
+  }
 
   tfm::printfln("compressing basic block graph...");
   do {
@@ -737,8 +765,8 @@ auto cap_save_basic_block_cfg_to_dot_file (const std::string& filename)  -> void
 {
   try {
     if (trace.empty()) throw 1;
-    if (boost::num_vertices(internal_graph) == 0) construct_graph_from_trace();
-    if (boost::num_vertices(internal_graph) == 0) throw 2;
+//    if (boost::num_vertices(internal_graph) == 0) construct_graph_from_trace();
+//    if (boost::num_vertices(internal_graph) == 0) throw 2;
 
     tfm::printfln("constructing basic block graph...");
 
