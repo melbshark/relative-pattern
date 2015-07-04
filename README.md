@@ -11,10 +11,10 @@ Though the approach is formal, seriously I think the main idea is not new. It is
 
 The tool is written mostly in C++ and OCaml, and uses the following softwares:
 * [BinSec](http://binsec.gforge.inria.fr)
-* [ELFIO - ELF](https://github.com/serge1/ELFIO)
-* [Type safe printf](https://github.com/c42f/tinyformat)
 * [Pin](https://software.intel.com/en-us/articles/pin-a-dynamic-binary-instrumentation-tool)
-* [Protocol Buffers](https://github.com/google/protobuf)
 * [Boost](http://www.boost.org)
+* [Type safe printf](https://github.com/c42f/tinyformat)
+* [Protocol Buffers](https://github.com/google/protobuf)
+* [ELFIO - ELF](https://github.com/serge1/ELFIO)
 
 ![alg tag](demo/code_virtualizer.png)
