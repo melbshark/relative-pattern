@@ -14,5 +14,6 @@ The tool is written mostly in C++ and OCaml, and uses the following softwares:
 * [Type safe printf](https://github.com/c42f/tinyformat)
 * [Pin](https://software.intel.com/en-us/articles/pin-a-dynamic-binary-instrumentation-tool)
 * [Protocol Buffers](https://github.com/google/protobuf)
+* [Boost](http://www.boost.org)
 
 ![alg tag](demo/code_virtualizer.png)
