@@ -4,7 +4,7 @@ This is a tool experimenting a *formal method* for recovering program control fl
 * [VMProtect](http://vmpsoft.com/)
 * [Code Virtualizer](http://oreans.com/)
 * [O-LLVM](https://github.com/obfuscator-llvm/obfuscator)<sup>1</sup>
-* Other ad-hoc virtual machines<sup>2</sup>.
+* Other ad-hoc implementations<sup>2</sup>.
 
 The code is in active development and still difficult to use. The modules of the concolic execution engine are not published yet, though the current published code can work with any concolic or fuzzing engine. Currently there is no documentation (please contact me if you are interested in). I try also to prepare a paper on this but there are still a lot of things to do.
 
