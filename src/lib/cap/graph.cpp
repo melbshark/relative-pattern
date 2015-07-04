@@ -789,7 +789,7 @@ static auto write_cfg_edge (std::ostream& label, bb_edge_desc_t edge_desc) -> vo
 }
 
 
-auto cap_save_basic_block_cfg_to_dot_file (const std::string& filename)  -> void
+auto cap_save_basic_block_cfg_to_dot_file (const std::string& filename) -> void
 {
   try {
     if (trace.empty()) throw 1;
@@ -804,9 +804,9 @@ auto cap_save_basic_block_cfg_to_dot_file (const std::string& filename)  -> void
     ofstream output_file(filename.c_str(), std::ofstream::out | std::ofstream::trunc);
     if (!output_file.is_open()) throw 4;
 
-    tfm::printfln("saving basic block graph...");
+    tfm::printfln("\nsaving basic block graph...");
     boost::write_graphviz(output_file, internal_bb_graph,
-                          std::bind(write_cfg_thumbnail_vertex, std::placeholders::_1, std::placeholders::_2),
+                          std::bind(write_cfg_vertex, std::placeholders::_1, std::placeholders::_2),
                           std::bind(write_cfg_edge, std::placeholders::_1, std::placeholders::_2));
     output_file.close();
   }
