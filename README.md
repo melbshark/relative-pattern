@@ -10,6 +10,7 @@ The code is in active development and still difficult to use. The modules of the
 Though the approach is formal, seriously I think the main idea is not new. It is considered implicitly in many practical "unpack tutorials" of great hackers and crackers (while I am just a newbie). My original contribution here is only to give a more solid theoretical base that explains these concrete techniques, and this leads to a "less ad-hoc" deobfuscation technique.
 
 The tool is written mostly in C++ and OCaml, and uses the following softwares:
+* [BinSec](http://binsec.gforge.inria.fr)
 * [ELFIO - ELF](https://github.com/serge1/ELFIO)
 * [Type safe printf](https://github.com/c42f/tinyformat)
 * [Pin](https://software.intel.com/en-us/articles/pin-a-dynamic-binary-instrumentation-tool)
