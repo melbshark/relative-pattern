@@ -3,8 +3,8 @@ This is a tool experimenting a *formal method* for recovering program control fl
 * [Tigress](http://tigress.cs.arizona.edu/)
 * [VMProtect](http://vmpsoft.com/)
 * [Code Virtualizer](http://oreans.com/)
-* [O-LLVM](https://github.com/obfuscator-llvm/obfuscator)(this obfuscator does not support yet virtualization transformations, though control-flow-graph flattening can be considered as a "light-weight" virtualization)
-* Other ad-hoc virtual machines (I collect them on [crackmes](http://crackmes.de/))
+* [O-LLVM](https://github.com/obfuscator-llvm/obfuscator)<sup>1</sup>
+* Other ad-hoc virtual machines<sup>2</sup>.
 
 The code is in active development and still difficult to use. The modules of the concolic execution engine are not published yet, though the current published code can work with any concolic or fuzzing engine. Currently there is no documentation (please contact me if you are interested in). I try also to prepare a paper on this but there are still a lot of things to do.
 
@@ -19,3 +19,7 @@ The tool is written mostly in C++ and OCaml, and uses the following softwares:
 * [ELFIO - ELF](https://github.com/serge1/ELFIO)
 
 ![alg tag](demo/code_virtualizer.png)
+
+<sup>1</sup>[O-LLVM](https://github.com/obfuscator-llvm/obfuscator) does not support yet virtualization transformations, though control-flow-graph flattening can be considered as a "light-weight" virtualization.
+
+<sup>2</sup>Collected from [crackmes.de](http://crackmes.de/).
