@@ -7,7 +7,7 @@ This is a tool experimenting a *formal method* for recovering program control fl
 
 The code is in active development and difficult to use. The modules of the concolic execution engine are not published yet, though the current published code can work with any concolic or fuzzing engine. Currently there is no documentation (please contact me if you are interested in). I try also to prepare a paper on this but there are still a lot of things to do.
 
-Though my approach is formal, but seriously I think the main idea is not new. It is considered implicitly in many practical "unpack tutorials". My original contribution here is just giving a formal base that explains these concrete techniques.
+Though my approach is formal, but seriously I think the main idea is not new. It is considered implicitly in many practical "unpack tutorials". My original contribution here is just giving a more solid theoretical base that explains these concrete techniques.
 
 The tool is written mostly in C++ and OCaml, and uses the following softwares:
 * [ELFIO - ELF](https://github.com/serge1/ELFIO)
