@@ -6,9 +6,9 @@ This is a tool experimenting a *formal method* for recovering program control fl
 * [O-LLVM](https://github.com/obfuscator-llvm/obfuscator)<sup>1</sup>
 * Other ad-hoc implementations<sup>2</sup>.
 
-The code is in active development and still difficult to use. The modules of the concolic execution engine are not published yet, though the current published code can work with any concolic or fuzzing engine. Currently there is no documentation (please contact me if you are interested in). I try also to prepare a paper on this but there are still a lot of things to do.
+The code is in active development, still buggy and difficult to use. The modules of the concolic execution engine are not published yet, though the current published code can work with any concolic or fuzzing engine. Currently there is no documentation (please contact me if you are interested in). I try also to prepare a paper on this but there are still a lot of things to do.
 
-Though the approach is formal, seriously I think the main idea is not new. It may be considered implicitly in many practical "unpack tutorials" of great hackers and crackers. While I am just a newbie, the only original contribution here is to give a more solid *theoretical base* that explains these concrete techniques, and this leads to a "less ad-hoc"<sup>3</sup> deobfuscation technique.
+Though the tool follows a mathematical approach, seriously I think the main idea is not new. It may be considered implicitly in many practical "unpack tutorials" of great hackers and crackers. While I am just a newbie, the only original contribution here is to give a more solid *theoretical base* that explains these concrete techniques, and this leads to a "less ad-hoc"<sup>3</sup> deobfuscation technique.
 
 The tool is written mostly in C++ and OCaml, and uses the following softwares:
 * [BinSec](http://binsec.gforge.inria.fr/)
