@@ -10,7 +10,7 @@ The code is in active development, still buggy and difficult to use. The modules
 
 Though the tool follows a mathematical approach, seriously I think the main idea is not new. It may be considered implicitly in many practical "unpack tutorials" of great hackers and crackers. While I am just a newbie, the only original contribution here is to give a more solid *theoretical base* that explains these concrete techniques, and this leads to a "less ad-hoc"<sup>3</sup> deobfuscation technique.
 
-The tool is written mostly in C++ and OCaml, and uses the following softwares:
+The tool is written mostly in C++ and OCaml, and uses the following great softwares:
 * [BinSec](http://binsec.gforge.inria.fr/)
 * [Pin](https://software.intel.com/en-us/articles/pin-a-dynamic-binary-instrumentation-tool)
 * [Boost](http://www.boost.org/)
