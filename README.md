@@ -18,9 +18,9 @@ The tool is written mostly in C++ and OCaml, and uses the following great softwa
 * [Protocol Buffers](https://github.com/google/protobuf)
 * [ELFIO - ELF](https://github.com/serge1/ELFIO)
 
-![alg tag](demo/code_virtualizer.png)
+Currently there is no documentation (if you are interested in, I am very happy to answer any question). I try also to prepare a paper on this but there are still a lot of things to do.
 
-Currently there is no documentation (please contact me if you are interested in). I try also to prepare a paper on this but there are still a lot of things to do.
+![alg tag](demo/code_virtualizer.png)
 
 <sup>1</sup>[O-LLVM](https://github.com/obfuscator-llvm/obfuscator) does not support yet virtualization transformations, though control-flow-graph flattening can be considered as a "light-weight" virtualization.
 
