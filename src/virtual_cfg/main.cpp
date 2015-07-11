@@ -11,6 +11,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/graphviz.hpp>
+#include <boost/filesystem.hpp>
 
 typedef uint32_t tr_vertex_t;
 typedef std::vector<tr_vertex_t> tr_vertices_t;

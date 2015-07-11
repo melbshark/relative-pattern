@@ -32,11 +32,11 @@ auto cap_save_virtual_trace_to_file         (const std::string& filename)       
 
 // instrumentation functions
 // instruction mode
-
+auto cap_ins_mode_get_ins_info              (INS ins, VOID* data)                                    -> VOID;
 
 // trace mode
-auto cap_trace_mode_patch_ins_info (TRACE trace, VOID* data)                                                       -> VOID;
-auto cap_trace_mode_get_ins_info (TRACE trace, VOID* data)                                                         -> VOID;
+auto cap_trace_mode_patch_ins_info          (TRACE trace, VOID* data)                                -> VOID;
+auto cap_trace_mode_get_ins_info            (TRACE trace, VOID* data)                                -> VOID;
 
 // img mode
 auto cap_img_mode_get_ins_info (IMG img, VOID* data)                                                               -> VOID;

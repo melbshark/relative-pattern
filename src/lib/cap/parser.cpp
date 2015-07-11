@@ -66,7 +66,7 @@ auto real_value_of_mem (const std::pair<dyn_mem_t, ADDRINT>& mem_val) -> ADDRINT
 
 auto save_in_simple_format (std::ofstream& output_stream) -> void
 {
-  tfm::printfln("trace length %d", trace.size());
+  tfm::printfln("trace length: %d instructions", trace.size());
 
   for (const dyn_ins_t& ins : trace) {
     auto ins_addr = std::get<INS_ADDRESS>(ins);

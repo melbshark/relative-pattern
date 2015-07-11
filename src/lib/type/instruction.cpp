@@ -53,15 +53,20 @@ instruction::instruction(const INS& ins)
 
   this->is_special = std::any_of(std::begin(this->src_registers), std::end(this->src_registers), is_special_reg) ||
       std::any_of(std::begin(this->dst_registers), std::end(this->dst_registers), is_special_reg) ||
-      (this->category == XED_CATEGORY_X87_ALU) || (this->iclass == XED_ICLASS_XEND) || (this->category == XED_CATEGORY_LOGICAL_FP) ||
-      (this->iclass == XED_ICLASS_PUSHA) || (this->iclass == XED_ICLASS_PUSHAD) || (this->iclass == XED_ICLASS_PUSHF) ||
-      (this->iclass == XED_ICLASS_PUSHFD) || (this->iclass == XED_ICLASS_PUSHFQ);
-
+      (this->category == XED_CATEGORY_X87_ALU) || (this->category == XED_CATEGORY_LOGICAL_FP) ||
+      (this->iclass == XED_ICLASS_XEND) || (this->iclass == XED_ICLASS_PUSHA) ||
+      (this->iclass == XED_ICLASS_PUSHAD) || (this->iclass == XED_ICLASS_PUSHF) ||
+      (this->iclass == XED_ICLASS_PUSHFD) || (this->iclass == XED_ICLASS_PUSHFQ) ||
+      (this->iclass == XED_ICLASS_RDTSC) || (this->iclass == XED_ICLASS_SKINIT) || (this->iclass == XED_ICLASS_RDPMC);
 
   // is memory read, write
   this->is_memory_read    = INS_IsMemoryRead(ins);
   this->is_memory_write   = INS_IsMemoryWrite(ins);
   this->has_memory_read_2 = INS_HasMemoryRead2(ins);
+
+//  if (this->address == 0x639219) {
+//    tfm::printfln("initialize %s:%s:%d:%d\n", StringFromAddrint(this->address), this->disassemble, this->iclass, XED_ICLASS_PUSHAD);
+//  }
 
 //  tfm::printfln("instruction initialized %s : %s", StringFromAddrint(this->address), this->disassemble);
 }
