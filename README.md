@@ -26,6 +26,6 @@ Currently there is no documentation (if you are interested in, I am very happy t
 
 <sup>2</sup>Collected from [crackmes.de](http://crackmes.de/).
 
-<sup>3</sup>[BinSec](http://binsec.gforge.inria.fr/) will be open when it is ready, some technical documents and source codes can be referenced [here](http://sebastien.bardin.free.fr/binsec.html).
+<sup>3</sup>[BinSec](http://binsec.gforge.inria.fr/) is in very active development and it will be open when it is ready, some technical documents and (rather old) source codes can be referenced [here](http://sebastien.bardin.free.fr/binsec.html).
 
 <sup>4</sup>Hopefully.
