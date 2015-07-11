@@ -40,6 +40,12 @@ type exe_control_point_t =
     control_type     : control_t
   }
 
+module IntSet = Set.Make(
+  struct
+    let compare = Pervasives.compare
+    type t = int
+  end)
+
  exception NotVisitedContinuationIndex of int
  exception AllContinuationVisited
 
@@ -726,7 +732,6 @@ let get_exploration_control_point visited_cpoints =
 (* ============================================================================= *)
 
 let print_exploration_result visited_cpoints =
-  Printf.printf "===================================================\nexploration results:\n";
   DynArray.iter (fun cpoint ->
       match cpoint.explored with
       | Covered ->
@@ -747,6 +752,24 @@ let print_exploration_result visited_cpoints =
       | _ -> ()
     ) visited_cpoints
 
+(* ============================================================================= *)
+
+let save_exploration_result_to_file visited_cpoints result_file =
+  let explored_values = ref IntSet.empty in
+  (
+    DynArray.iter (fun cpoint ->
+      match cpoint.explored with
+      | Covered ->
+        (
+          DynArray.iter (fun continuation ->
+              List.iter (fun value -> explored_values := IntSet.add value !explored_values) continuation.input_value) cpoint.continuations
+        )
+      | _ -> ()
+      ) visited_cpoints;
+
+    let result_string = IntSet.fold (fun value accum -> (Printf.sprintf "0x%x;" value) ^ accum) !explored_values "" in
+    Std.output_file result_file result_string
+  )
 
 (* ============================================================================= *)
 (* trace explorer for conditional and dynamic jumps *)
@@ -764,7 +787,13 @@ let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) (input_po
       (
         all_explored := true;
         Printf.printf "all control points are covered, stop exploration.\n";
+        Printf.printf "===================================================\nexploration results:\n";
         print_exploration_result visited_cpoints;
+        let exploration_result_file = (Filename.basename exe_filename) ^ ".exp" in
+        (
+          Printf.printf "===================================================\nsave results to: %s\n" exploration_result_file;
+          save_exploration_result_to_file visited_cpoints exploration_result_file;
+        );
         flush stdout;
       )
     | Some cpoint ->
