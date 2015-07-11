@@ -112,9 +112,9 @@ let construct_memory_state (base_address:int) (state_entries:int list) initial_s
 (* ============================================================================= *)
 
 let construct_memory_state_from_file base_address state_entries_filename initial_state =
-  let entries_as_string = Std.input_file ?bin:false state_entries_filename in
-  let entries_as_string = Str.split (Str.regexp "[ ;\n]") entries_as_string in
-  let entries = List.map (fun str -> int_of_string str) entries_as_string in
+  let entries_as_string = Std.input_file ~bin:false state_entries_filename in
+  let entries_as_strings = Str.split (Str.regexp "[ ;\n]") entries_as_string in
+  let entries = List.map (fun str -> int_of_string str) entries_as_strings in
   construct_memory_state base_address entries initial_state
 
 (* ============================================================================= *)
@@ -393,6 +393,18 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
       )
     | None -> assert false;
 
+
+  method private update_dynamic_jump_first_continuation inst (env:analysis_env) =
+    let new_continuation = { (DynArray.get target_control_point.continuations 0)
+                             with next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size)) }
+    in DynArray.set target_control_point.continuations 0 new_continuation;
+
+    Printf.printf "dynamic jump at 0x%x with history %d is PARTIALLY COVERED\n" (Int64.to_int target_control_point.location)
+      (List.length target_control_point.history); flush stdout;
+
+    (target_control_point.explored <- PartiallyCovered);
+
+
   method private calculate_conditional_jump_continuations cond address inst (env:analysis_env) =
     let cond_prop = Big_int.eq_big_int address (fst (get_next_address inst.concrete_infos env.addr_size))
     and init_state = construct_memory_state new_jump_table_address new_jump_table_entries Addr64Map.empty in
@@ -490,14 +502,16 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
                 match target_control_point.explored with
                 | JustCovered ->
                   (
-                    let new_continuation = { (DynArray.get target_control_point.continuations 0)
-                                             with next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size)) }
-                    in DynArray.set target_control_point.continuations 0 new_continuation;
+                    (* let new_continuation = { (DynArray.get target_control_point.continuations 0) *)
+                    (*                          with next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size)) } *)
+                    (* in DynArray.set target_control_point.continuations 0 new_continuation; *)
 
-                    Printf.printf "dynamic jump at 0x%x with history %d is PARTIALLY COVERED\n" (Int64.to_int target_control_point.location)
-                      (List.length target_control_point.history); flush stdout;
+                    (* Printf.printf "dynamic jump at 0x%x with history %d is PARTIALLY COVERED\n" (Int64.to_int target_control_point.location) *)
+                    (*   (List.length target_control_point.history); flush stdout; *)
 
-                    (target_control_point.explored <- PartiallyCovered);
+                    (* (target_control_point.explored <- PartiallyCovered); *)
+
+                    (self#update_dynamic_jump_first_continuation inst env);
                     StopExec
                   )
                 | PartiallyCovered ->
@@ -732,11 +746,11 @@ let create_pseudo_control_point () =
       Printf.printf "(randomized)\n"; flush stdout;
       Some (* create a pseudo control point for the first time *)
         {
-          location         = Int64.of_int 0;
-          history          = [];
-          continuations    = DynArray.init 2 (fun _ -> pseudo_continuation);
-          explored         = Visited;
-          contentsrol_type = ConJump
+          location      = Int64.of_int 0;
+          history       = [];
+          continuations = DynArray.init 2 (fun _ -> pseudo_continuation);
+          explored      = Visited;
+          control_type  = ConJump
         };
     )
   )
@@ -747,6 +761,30 @@ let get_exploration_control_point visited_cpoints =
   if (DynArray.empty visited_cpoints)
   then create_pseudo_control_point ()
   else find_next_unexplored_control_point visited_cpoints
+
+(* ============================================================================= *)
+
+let print_exploration_result visited_cpoints =
+  Printf.printf "========================================\nexploration results:\n";
+  DynArray.iter (fun cpoint ->
+      match cpoint.explored with
+      | Covered ->
+        (
+          (
+            match cpoint.control_type with
+            | ConJump -> Printf.printf "conditional jump at 0x%x with history %d is covered by:\n" (Int64.to_int cpoint.location) (List.length cpoint.history)
+            | DynJump -> Printf.printf "dynamic jump at 0x%x with history %d is covered by:\n" (Int64.to_int cpoint.location) (List.length cpoint.history)
+          );
+
+          DynArray.iter (fun continuation ->
+              Printf.printf "next address: 0x%x; " (Int64.to_int continuation.next_location);
+              Printf.printf "input value(s): ";
+              List.iter (fun value -> Printf.printf "0x%x " value) continuation.input_value;
+              Printf.printf "\n"
+            ) cpoint.continuations
+        )
+      | _ -> ()
+    ) visited_cpoints
 
 
 (* ============================================================================= *)
@@ -776,7 +814,9 @@ let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) =
     | None ->
       (
         all_explored := true;
-        Printf.printf "all control points are covered, stop exploration.\n"; flush stdout;
+        Printf.printf "all control points are covered, stop exploration.\n";
+        print_exploration_result visited_cpoints;
+        flush stdout;
       )
     | Some cpoint ->
       (
