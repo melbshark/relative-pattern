@@ -19,9 +19,11 @@ auto dump(const uint8_t* section_data, uint32_t section_addr, uint32_t section_s
                               std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
 
 //    auto count = uint32_t{0};
-    for (auto dumped_entry = start_dumped_entry; dumped_entry < stop_dumped_entry; ++dumped_entry) {
-      auto dumped_value = *dumped_entry;
-      tfm::format(dumped_file, "0x%x; ", dumped_value);
+    auto dumped_value = *start_dumped_entry;
+    tfm::format(dumped_file, "0x%x", dumped_value);
+    for (auto dumped_entry = start_dumped_entry + 1; dumped_entry < stop_dumped_entry; ++dumped_entry) {
+      dumped_value = *dumped_entry;
+      tfm::format(dumped_file, ";0x%x", dumped_value);
 //      ++count; if (count % 32 == 0) tfm::format(dumped_file, "\n");
     }
 

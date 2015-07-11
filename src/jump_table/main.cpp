@@ -63,12 +63,16 @@ int main(int argc, char* argv[])
 
     //=== dumping data
     if (data == nullptr) throw 3;
-    tfm::printfln("Section %s of size %d bytes found at range [0x%x, 0x%x)", section_name,
-                  data_size, data_base_address, data_base_address + data_size);
 
     auto start_dumping_address = std::stoul(argv[3], nullptr, 0x10);
     auto stop_dumping_address = std::stoul(argv[4], nullptr, 0x10);
     auto dumped_data_file = std::string(argv[5]);
+
+    tfm::printfln("Section %s of size %d bytes found at range [0x%x, 0x%x), dumping %d bytes in range [0x%x, 0x%x) to file %s",
+                  section_name,
+                  data_size, data_base_address, data_base_address + data_size,
+                  stop_dumping_address - start_dumping_address, start_dumping_address, stop_dumping_address,
+                  dumped_data_file);
 
     dump(data, data_base_address, data_size, start_dumping_address, stop_dumping_address, dumped_data_file);
   }

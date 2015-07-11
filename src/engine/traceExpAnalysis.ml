@@ -113,9 +113,15 @@ let construct_memory_state (base_address:int) (state_entries:int list) initial_s
 
 let construct_memory_state_from_file base_address state_entries_filename initial_state =
   let entries_as_string = Std.input_file ~bin:false state_entries_filename in
-  let entries_as_strings = Str.split (Str.regexp "[ ;\n]") entries_as_string in
-  let entries = List.map (fun str -> int_of_string str) entries_as_strings in
-  construct_memory_state base_address entries initial_state
+  let entries_as_strings = Str.split (Str.regexp "[;]") entries_as_string in
+  (
+    (* Printf.printf "read %d entries from dump file %s\n" (List.length entries_as_strings) state_entries_filename; *)
+    (* List.iter (fun entry -> *)
+    (*     let value = (int_of_string entry) in Printf.printf "%d " value) entries_as_strings; *)
+
+    let entries = List.map (fun str -> int_of_string str) entries_as_strings in
+    construct_memory_state base_address entries initial_state
+  )
 
 (* ============================================================================= *)
 
@@ -158,11 +164,8 @@ let find_visiting_continuation_index control_point =
 
 (* moteur d'execution spécial *)
 class explorer_b (trace_filename:string) concolic_policy = object(self) inherit trace_analysis trace_filename concolic_policy as super
-  val new_jump_table_address = 0x80493c8
-  val new_jump_table_entries =
-    [
-      0x5f; 0x92; 0x4; 0x8; 0x6d; 0x92; 0x4; 0x8; 0x7b; 0x92; 0x4; 0x8; 0x89; 0x92; 0x4; 0x8; 0x97; 0x92; 0x4; 0x8; 0xa5; 0x92; 0x4; 0x8
-    ]
+  val jump_table_address = 0x804a01c
+  val jump_table_dump_file = "mobfus.dump"
 
   val mutable input_is_parameterized = false
   val mutable start_exploring = false
@@ -177,10 +180,7 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
       control_type    = ConJump
     }
 
-  method set_target_control_point cpoint =
-    (
-      (target_control_point <- cpoint)
-    )
+  method set_target_control_point cpoint = (target_control_point <- cpoint)
   method get_target_control_point = target_control_point
 
   (* in executing to the target control point, we need re-tracing the program, the following list respresent the current trace *)
@@ -200,10 +200,11 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
   (* input points *)
   (* val input_points = [ (0x8048cc5,0xffffd0d7); (0x8048cce,0xffffd0d6); (0x8048cd7,0xffffd0d5); (0x8048ce0,0xffffd0d4); *)
   (*                      (0x8048ce9,0xffffd0d3); (0x8048cf2,0xffffd0d2); (0x8048cfb,0xffffd0d1)] *)
-  val input_points = [ (0x80491c6, Register "eax") ]
+  val input_points = [ (0x08048429, Register "eax") ]
   method get_input_points = input_points
   val mutable input_vars = []
   method get_input_vars = input_vars
+
 
   method private get_dynamic_jmp_new_input_values target_expr target_var_name input_var_names current_target_addr_input_values_pair init_mem_state env =
     (self#add_witness_variable target_var_name target_expr env);
@@ -211,29 +212,22 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
     let rec get_possible_targets collected_target_addr_input_values_pairs =
       let collected_addrs = fst (List.split collected_target_addr_input_values_pairs) in
       (* fold_left : ('a -> 'b -> 'a) -> 'a -> 'b list -> 'a *)
-      let local_pred = List.fold_left
-          (fun current_pred addr -> (SmtNot(self#build_witness_bitvector_comparison_predicate target_var_name env.addr_size addr))::current_pred)
+      let local_pred = List.fold_left (fun current_pred addr ->
+          (SmtNot(self#build_witness_bitvector_comparison_predicate target_var_name env.addr_size addr))::current_pred)
           [] collected_addrs
       in
+      let trace_pred = self#build_multiple_condition_predicate local_pred in
       (
-        let trace_pred = self#build_multiple_condition_predicate local_pred in
-        (
-          (build_formula env.formula trace_pred ~negate:false ~initial_state:init_mem_state formula_file);
-          let result, model = solve_z3_model formula_file in
+        (build_formula env.formula trace_pred ~negate:false ~initial_state:init_mem_state formula_file);
+        let result, model = solve_z3_model formula_file in
+        match result with
+        | SAT ->
           (
-            match result with
-            | SAT ->
-              (
-                let input_values = List.map (fun input_var_name -> Big_int.int_of_big_int (fst (get_bitvector_value model input_var_name)))  input_var_names
-                and target_addr = get_bitvector_value model target_var_name in
-                get_possible_targets ((target_addr, input_values)::collected_target_addr_input_values_pairs)
-              )
-            | UNSAT ->
-              (
-                collected_target_addr_input_values_pairs
-              )
+            let input_values = List.map (fun input_var_name -> Big_int.int_of_big_int (fst (get_bitvector_value model input_var_name)))  input_var_names
+            and target_addr = get_bitvector_value model target_var_name in
+            get_possible_targets ((target_addr, input_values)::collected_target_addr_input_values_pairs)
           )
-        )
+        | UNSAT -> collected_target_addr_input_values_pairs
       )
     in
     (
@@ -246,6 +240,7 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
       let all_targets = get_possible_targets [current_target_addr_input_values_pair] in
       snd (List.split (remove_last all_targets))
     )
+
 
   method private get_conditional_jmp_new_input_values target_cond input_var_names current_cond_prop init_mem_state env =
     let formula_file = "formula_if.smt2"
@@ -264,19 +259,6 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
   (* ================================== visiting methods ================================== *)
 
   method visit_instr_before (key:int) (inst:trace_inst) (env:analysis_env) = (* of type trace_visit_action *)
-    (* Printf.printf "%s\n" inst.opcode; flush stdout; *)
-    (* if (not start_exploring) then *)
-    (*   if (Int64.compare inst.location (Int64.of_string "0x08048c55") = 0) then *)
-    (*     ( *)
-    (*       Printf.printf "start exploring from 0x%x\n" (Int64.to_int inst.location); flush stdout; *)
-    (*       start_exploring <- true *)
-    (*     ) *)
-    (*   else () *)
-    (*     (\* ( *\) *)
-    (*     (\*   (\\* Printf.printf "not start\n"; flush stdout; *\\) *\) *)
-    (*     (\*   Printf.printf "0x%x   %s\n" (Int64.to_int inst.location) inst.opcode; flush stdout; *\) *)
-    (*     (\* ) *\) *)
-    (* else (); *)
     DoExec
 
   method visit_instr_after (key:int) (inst:trace_inst) (env:analysis_env) =
@@ -324,7 +306,8 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
         then
           (
             (* Printf.printf "in: we are here\n"; flush stdout; *)
-            let init_state = construct_memory_state new_jump_table_address new_jump_table_entries Addr64Map.empty
+            (* let init_state = construct_memory_state jump_table_address jump_table_entries Addr64Map.empty *)
+            let init_state = construct_memory_state_from_file jump_table_address jump_table_dump_file Addr64Map.empty
             and current_target_addr = get_regwrite_value_bv "ecx" inst.concrete_infos env.addr_size
             and current_input_value = (DynArray.get target_control_point.continuations 0).input_value
             in
@@ -339,7 +322,7 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
 
                   Printf.printf "dynamic jump at 0x%x with history %d is UNCOVERABLE\n" (Int64.to_int target_control_point.location)
                     (List.length target_control_point.history); flush stdout;
-              )
+                )
               | input_values ->
                 (
                   (target_control_point.explored <- JustCovered);
@@ -407,7 +390,8 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
 
   method private calculate_conditional_jump_continuations cond address inst (env:analysis_env) =
     let cond_prop = Big_int.eq_big_int address (fst (get_next_address inst.concrete_infos env.addr_size))
-    and init_state = construct_memory_state new_jump_table_address new_jump_table_entries Addr64Map.empty in
+    (* and init_state = construct_memory_state new_jump_table_address new_jump_table_entries Addr64Map.empty in *)
+    and init_state = construct_memory_state_from_file jump_table_address jump_table_dump_file Addr64Map.empty in
     let new_input_values = self#get_conditional_jmp_new_input_values cond input_vars cond_prop init_state env in
     (
       match new_input_values with
@@ -463,7 +447,6 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
         if (DynArray.length accumulated_ins_locs = List.length target_control_point.history)
         then
           (
-            (* Printf.printf "accumulated instruction number: %d\n" (DynArray.length accumulated_ins_locs); flush stdout; *)
             match snd dbainst with
             | DbaIkIf (cond, NonLocal((address, _), _), offset) ->
               if self#is_symbolic_condition cond env
@@ -476,17 +459,17 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
                       (self#update_conditional_jump_next_continuation inst env);
                       DoExec
                     )
-                    | Visited ->
-                      (
-                        (self#calculate_conditional_jump_continuations cond address inst env);
-                        StopExec
-                      )
-                    | _ ->
-                      (
-                        (* Printf.printf "Failed at 0x%x %s\n" (Int64.to_int inst.location) inst.opcode; flush stdout; *)
-                        assert false
-                        (* DoExec *)
-                      )
+                  | Visited ->
+                    (
+                      (self#calculate_conditional_jump_continuations cond address inst env);
+                      StopExec
+                    )
+                  | _ ->
+                    (
+                      (* Printf.printf "Failed at 0x%x %s\n" (Int64.to_int inst.location) inst.opcode; flush stdout; *)
+                      assert false
+                      (* DoExec *)
+                    )
                 )
               else
                 (
@@ -498,19 +481,9 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
                 )
             | DbaIkDJump _ ->
               (
-                (* Printf.printf "kkkkk\n"; flush stdout; *)
                 match target_control_point.explored with
                 | JustCovered ->
                   (
-                    (* let new_continuation = { (DynArray.get target_control_point.continuations 0) *)
-                    (*                          with next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size)) } *)
-                    (* in DynArray.set target_control_point.continuations 0 new_continuation; *)
-
-                    (* Printf.printf "dynamic jump at 0x%x with history %d is PARTIALLY COVERED\n" (Int64.to_int target_control_point.location) *)
-                    (*   (List.length target_control_point.history); flush stdout; *)
-
-                    (* (target_control_point.explored <- PartiallyCovered); *)
-
                     (self#update_dynamic_jump_first_continuation inst env);
                     StopExec
                   )
@@ -542,10 +515,7 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
               | DynJump ->
                 (
                   match target_control_point.explored with
-                  | Visited ->
-                    (
-                      self#update_dynamic_jump_continuations dbainst inst env
-                    )
+                  | Visited -> self#update_dynamic_jump_continuations dbainst inst env
                   | _ -> ()
                 )
               | _ -> ()
@@ -695,17 +665,6 @@ let get_exploration_input control_point =
     )
   | _ -> assert false
 
-
-  (* try *)
-  (*   Some *)
-  (*     ( *)
-  (*       let cont = List.find (fun continuation -> Int64.to_int continuation.next_location <> 0) *)
-  (*           (DynArray.to_list control_point.continuations) *)
-  (*       in cont.input_value *)
-  (*     ) *)
-  (* with *)
-  (* | Not_found -> None *)
-
 (* ============================================================================= *)
 
 let find_control_point_index cpoint cpoints =
@@ -765,7 +724,7 @@ let get_exploration_control_point visited_cpoints =
 (* ============================================================================= *)
 
 let print_exploration_result visited_cpoints =
-  Printf.printf "========================================\nexploration results:\n";
+  Printf.printf "===================================================\nexploration results:\n";
   DynArray.iter (fun cpoint ->
       match cpoint.explored with
       | Covered ->
@@ -796,20 +755,7 @@ let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) =
   and cs_policy       = new exp_policy_b
   in
   while not !all_explored do
-    let next_cpoint = get_exploration_control_point visited_cpoints
-      (* match find_next_unexplored_control_point visited_cpoints with *)
-      (* | None -> *)
-      (*   ( *)
-      (*     if (DynArray.empty visited_cpoints) *)
-      (*     then create_pseudo_control_point () *)
-      (*     else None *)
-      (*   ) *)
-      (* | Some cpoint -> *)
-      (*   ( *)
-      (*     Printf.printf "next control point found\n"; flush stdout; *)
-      (*     Some cpoint *)
-      (*   ) *)
-    in
+    let next_cpoint = get_exploration_control_point visited_cpoints in
     match next_cpoint with
     | None ->
       (
@@ -821,7 +767,7 @@ let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) =
     | Some cpoint ->
       (
         let config_filename =
-          let input_points = [ (0x080491c6, Register "eax") ]
+          let input_points = [ (0x08048429, Register "eax") ]
           and input_values = get_exploration_input cpoint
           in
           (
