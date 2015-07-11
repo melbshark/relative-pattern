@@ -111,6 +111,14 @@ let construct_memory_state (base_address:int) (state_entries:int list) initial_s
 
 (* ============================================================================= *)
 
+let construct_memory_state_from_file base_address state_entries_filename initial_state =
+  let entries_as_string = Std.input_file ?bin:false state_entries_filename in
+  let entries_as_string = Str.split (Str.regexp "[ ;\n]") entries_as_string in
+  let entries = List.map (fun str -> int_of_string str) entries_as_string in
+  construct_memory_state base_address entries initial_state
+
+(* ============================================================================= *)
+
 let find_not_visited_continuation_index control_point =
   try
     let idx = ref 0 in
@@ -724,11 +732,11 @@ let create_pseudo_control_point () =
       Printf.printf "(randomized)\n"; flush stdout;
       Some (* create a pseudo control point for the first time *)
         {
-          location       = Int64.of_int 0;
-          history        = [];
-          continuations  = DynArray.init 2 (fun _ -> pseudo_continuation);
-          explored       = Visited;
-          contentsrol_type   = ConJump
+          location         = Int64.of_int 0;
+          history          = [];
+          continuations    = DynArray.init 2 (fun _ -> pseudo_continuation);
+          explored         = Visited;
+          contentsrol_type = ConJump
         };
     )
   )
