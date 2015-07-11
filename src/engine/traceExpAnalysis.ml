@@ -163,9 +163,12 @@ let find_visiting_continuation_index control_point =
 (* ============================================================================= *)
 
 (* moteur d'execution spécial *)
-class explorer_b (trace_filename:string) concolic_policy = object(self) inherit trace_analysis trace_filename concolic_policy as super
-  val jump_table_address = 0x804a01c
-  val jump_table_dump_file = "mobfus.dump"
+class explorer_b (trace_filename:string) concolic_policy (input_positions:(int * state_indentifier_t) list) initial_memory_state = object(self)
+  inherit trace_analysis trace_filename concolic_policy as super
+
+  (* val jump_table_address = 0x804a01c *)
+  (* val jump_table_dump_file = "mobfus.dump" *)
+  val initial_state = initial_memory_state
 
   val mutable input_is_parameterized = false
   val mutable start_exploring = false
@@ -197,16 +200,15 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
     (DynArray.clear visited_control_points);
     (DynArray.append cpoints visited_control_points)
 
-  (* input points *)
-  (* val input_points = [ (0x8048cc5,0xffffd0d7); (0x8048cce,0xffffd0d6); (0x8048cd7,0xffffd0d5); (0x8048ce0,0xffffd0d4); *)
-  (*                      (0x8048ce9,0xffffd0d3); (0x8048cf2,0xffffd0d2); (0x8048cfb,0xffffd0d1)] *)
-  val input_points = [ (0x08048429, Register "eax") ]
+  (* val input_points = [ (0x08048429, Register "eax") ] *)
+  val input_points = input_positions
   method get_input_points = input_points
+
   val mutable input_vars = []
   method get_input_vars = input_vars
 
 
-  method private get_dynamic_jmp_new_input_values target_expr target_var_name input_var_names current_target_addr_input_values_pair init_mem_state env =
+  method private get_dynamic_jmp_new_input_values target_expr target_var_name input_var_names current_target_addr_input_values_pair mem_state env =
     (self#add_witness_variable target_var_name target_expr env);
     let formula_file = "formula_djump.smt2" in
     let rec get_possible_targets collected_target_addr_input_values_pairs =
@@ -218,7 +220,7 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
       in
       let trace_pred = self#build_multiple_condition_predicate local_pred in
       (
-        (build_formula env.formula trace_pred ~negate:false ~initial_state:init_mem_state formula_file);
+        (build_formula env.formula trace_pred ~negate:false ~initial_state:mem_state formula_file);
         let result, model = solve_z3_model formula_file in
         match result with
         | SAT ->
@@ -242,11 +244,11 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
     )
 
 
-  method private get_conditional_jmp_new_input_values target_cond input_var_names current_cond_prop init_mem_state env =
+  method private get_conditional_jmp_new_input_values target_cond input_var_names current_cond_prop mem_state env =
     let formula_file = "formula_if.smt2"
     and trace_pred = self#build_cond_predicate target_cond env in
     (
-      (build_formula env.formula trace_pred ~negate:current_cond_prop ~initial_state:init_mem_state formula_file);
+      (build_formula env.formula trace_pred ~negate:current_cond_prop ~initial_state:mem_state formula_file);
       let result, model = solve_z3_model formula_file in
       (
         match result with
@@ -307,12 +309,12 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
           (
             (* Printf.printf "in: we are here\n"; flush stdout; *)
             (* let init_state = construct_memory_state jump_table_address jump_table_entries Addr64Map.empty *)
-            let init_state = construct_memory_state_from_file jump_table_address jump_table_dump_file Addr64Map.empty
-            and current_target_addr = get_regwrite_value_bv "ecx" inst.concrete_infos env.addr_size
+            (* let init_state = construct_memory_state_from_file jump_table_address jump_table_dump_file Addr64Map.empty *)
+            let current_target_addr = get_regwrite_value_bv "ecx" inst.concrete_infos env.addr_size
             and current_input_value = (DynArray.get target_control_point.continuations 0).input_value
             in
             let new_input_values = self#get_dynamic_jmp_new_input_values
-                expr "jump_address" input_vars (current_target_addr, current_input_value) init_state env
+                expr "jump_address" input_vars (current_target_addr, current_input_value) initial_state env
             in
             (
               match new_input_values with
@@ -389,10 +391,10 @@ class explorer_b (trace_filename:string) concolic_policy = object(self) inherit 
 
 
   method private calculate_conditional_jump_continuations cond address inst (env:analysis_env) =
-    let cond_prop = Big_int.eq_big_int address (fst (get_next_address inst.concrete_infos env.addr_size))
+    let cond_prop = Big_int.eq_big_int address (fst (get_next_address inst.concrete_infos env.addr_size)) in
     (* and init_state = construct_memory_state new_jump_table_address new_jump_table_entries Addr64Map.empty in *)
-    and init_state = construct_memory_state_from_file jump_table_address jump_table_dump_file Addr64Map.empty in
-    let new_input_values = self#get_conditional_jmp_new_input_values cond input_vars cond_prop init_state env in
+    (* and init_state = construct_memory_state_from_file jump_table_address jump_table_dump_file Addr64Map.empty in *)
+    let new_input_values = self#get_conditional_jmp_new_input_values cond input_vars cond_prop initial_state env in
     (
       match new_input_values with
       | [] ->
@@ -748,11 +750,12 @@ let print_exploration_result visited_cpoints =
 
 (* ============================================================================= *)
 (* trace explorer for conditional and dynamic jumps *)
-let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) =
+let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) (input_points:(int * state_indentifier_t) list) (memory_base_addr:int) (memory_dump_file:string) =
   let visited_cpoints = DynArray.create ()
   and all_explored    = ref false
   and option_filename = generate_option_file exe_filename start_addr stop_addr
   and cs_policy       = new exp_policy_b
+  and initial_state   = construct_memory_state_from_file memory_base_addr memory_dump_file Addr64Map.empty
   in
   while not !all_explored do
     let next_cpoint = get_exploration_control_point visited_cpoints in
@@ -767,8 +770,8 @@ let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) =
     | Some cpoint ->
       (
         let config_filename =
-          let input_points = [ (0x08048429, Register "eax") ]
-          and input_values = get_exploration_input cpoint
+          (* let input_points = [ (0x08048429, Register "eax") ] *)
+          let input_values = get_exploration_input cpoint
           in
           (
             if Int64.to_int cpoint.location = 0
@@ -781,10 +784,10 @@ let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) =
           )
         in
         (
-          match instrument_exe exe_filename option_filename config_filename with
+          match (instrument_exe exe_filename option_filename config_filename) with
           | None -> exit 0
           | Some trace_filename ->
-            let exp_instance = new explorer_b trace_filename cs_policy in
+            let exp_instance = new explorer_b trace_filename cs_policy input_points initial_state in
             (
               (exp_instance#set_visited_control_points visited_cpoints);
               (exp_instance#set_target_control_point cpoint);
