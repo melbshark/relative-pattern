@@ -436,13 +436,11 @@ class explorer_b (trace_filename:string) concolic_policy (input_positions:(int *
     if (List.length target_control_point.history = 0) || (DynArray.length accumulated_ins_locs > List.length target_control_point.history)
     then
       (
-        (* Printf.printf "accumulated instruction number %d\n" (DynArray.length accumulated_ins_locs); flush stdout; *)
         match target_control_point.explored with
         | Visited | Covered | PartiallyCovered ->
           (
             match snd dbainst with
-            | DbaIkIf (_, NonLocal((_, _), _), _) | DbaIkDJump _ ->
-              self#add_new_control_point inst dbainst env.addr_size
+            | DbaIkIf (_, NonLocal((_, _), _), _) | DbaIkDJump _ -> self#add_new_control_point inst dbainst env.addr_size
             | _ -> ()
           );
           DoExec
@@ -458,7 +456,6 @@ class explorer_b (trace_filename:string) concolic_policy (input_positions:(int *
               if self#is_symbolic_condition cond env
               then
                 (
-                  (* Printf.printf "control point with history %d may be coverable\n" (List.length target_control_point.history); flush stdout; *)
                   match target_control_point.explored with
                   | PartiallyCovered ->
                     (
@@ -474,7 +471,6 @@ class explorer_b (trace_filename:string) concolic_policy (input_positions:(int *
                     (
                       (* Printf.printf "Failed at 0x%x %s\n" (Int64.to_int inst.location) inst.opcode; flush stdout; *)
                       assert false
-                      (* DoExec *)
                     )
                 )
               else
@@ -546,7 +542,6 @@ class explorer_b (trace_filename:string) concolic_policy (input_positions:(int *
         env.formula <- add_constraint env.formula ~comment:(Some "lower bound constraint") (SmtBvExpr(ge));
       )
     in
-    (* let ins_locs = fst (List.unzip input_points) in *)
     (* let ins_locs = (List.map (fun input_point -> fst input_point) input_points) in *)
     let ins_locs = fst (List.split input_points) in
     if (List.exists (fun loc -> Int64.compare (Int64.of_int loc) inst.location = 0) ins_locs)
@@ -709,6 +704,7 @@ let create_pseudo_control_point () =
       Printf.printf "initial input values: ";
       List.iter (fun input -> ignore (Printf.printf "0x%x " input)) !random_inputs;
       Printf.printf "(randomized)\n"; flush stdout;
+
       Some (* create a pseudo control point for the first time *)
         {
           location      = Int64.of_int 0;
@@ -784,6 +780,7 @@ let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) (input_po
     | None ->
       (
         all_explored := true;
+
         Printf.printf "all control points are covered, stop exploration.\n";
         Printf.printf "===================================================\nexploration results:\n";
         print_exploration_result visited_cpoints;
@@ -802,8 +799,8 @@ let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) (input_po
           in
           (
             if Int64.to_int cpoint.location = 0
-            then Printf.printf "VISIT pseudo control point with input value(s): "
-            else Printf.printf "REVISIT control point at 0x%x with input value(s): " (Int64.to_int cpoint.location);
+            then Printf.printf "VISIT pseudo control point by input value(s): "
+            else Printf.printf "REVISIT control point at 0x%x with history %d by input value(s): " (Int64.to_int cpoint.location) (List.length cpoint.history);
             List.iter (fun input -> ignore (Printf.printf "0x%x " input)) input_values;
             Printf.printf "\n"; flush stdout;
 
@@ -812,7 +809,11 @@ let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) (input_po
         in
         (
           match (instrument_exe exe_filename option_filename config_filename) with
-          | None -> exit 0
+          | None ->
+            (
+              Printf.printf "instrumentation error, stop exploration.\n";
+              exit 0
+            )
           | Some trace_filename ->
             let exp_instance = new explorer_b trace_filename cs_policy input_points initial_state in
             (
@@ -825,18 +826,17 @@ let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) (input_po
               else
                 (
                   let current_target_cpoint = exp_instance#get_target_control_point in
-                  match find_control_point_index current_target_cpoint visited_cpoints with
-                  | None ->
-                    (
-                      Printf.printf "instruction index not found\n"; flush stdout;
-                      assert false
-                    )
-                  | Some idx ->
-                    (
-                      DynArray.set visited_cpoints idx current_target_cpoint
-                    )
-                );
-                DynArray.append exp_instance#get_new_visited_control_points visited_cpoints
+                  (
+                    match find_control_point_index current_target_cpoint visited_cpoints with
+                    | None ->
+                      (
+                        Printf.printf "instruction index not found\n"; flush stdout;
+                        assert false
+                      )
+                    | Some idx -> DynArray.set visited_cpoints idx current_target_cpoint
+                  );
+                  DynArray.append exp_instance#get_new_visited_control_points visited_cpoints
+                )
             )
         )
       )
