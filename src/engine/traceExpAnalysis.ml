@@ -313,7 +313,6 @@ class explorer_b (trace_filename:string) concolic_policy (input_positions:(int *
         if self#is_symbolic_expression expr env
         then
           (
-            (* Printf.printf "in: we are here\n"; flush stdout; *)
             (* let init_state = construct_memory_state jump_table_address jump_table_entries Addr64Map.empty *)
             (* let init_state = construct_memory_state_from_file jump_table_address jump_table_dump_file Addr64Map.empty *)
             let current_target_addr = get_regwrite_value_bv "ecx" inst.concrete_infos env.addr_size
@@ -344,7 +343,6 @@ class explorer_b (trace_filename:string) concolic_policy (input_positions:(int *
                     ) input_values
                 )
             );
-            (* Printf.printf "out: we are here\n"; flush stdout; *)
           )
         else
           (
