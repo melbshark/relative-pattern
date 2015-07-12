@@ -397,7 +397,7 @@ static auto construct_bb_graph () -> void
   }
 
   tfm::printfln("compressing basic block graph...");
-  auto compress_progress = boost::progress_display(boost::num_vertices(internal_bb_graph));
+  boost::progress_display compress_progress(boost::num_vertices(internal_bb_graph));
   auto pivot_vertex_desc = bb_graph_t::null_vertex();
   do {
 //    tfm::printfln("number of vertices: %d", boost::num_vertices(internal_bb_graph));
