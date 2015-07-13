@@ -529,24 +529,23 @@ class explorer_b (trace_filename:string) concolic_policy (input_positions:(int *
   (* ============================================================================= *)
   (* mark the input *)
   method visit_dbainstr_after (key:int) (inst:trace_inst) (dbainst:dbainstr) (env:analysis_env) =
-    let add_var_char_constraints_into_env var_name upper_bound lower_bound =
-      let lt = SmtBvBinary(SmtBvSlt,
-                           SmtBvVar(var_name, 32),
-                           SmtBvCst(Big_int.big_int_of_int upper_bound, 32))
-      and ge = SmtBvBinary(SmtBvSge,
-                           SmtBvVar(var_name, 32),
-                           SmtBvCst(Big_int.big_int_of_int lower_bound, 32))
-      in
-      (
-        env.formula <- add_constraint env.formula ~comment:(Some "upper bound constraint") (SmtBvExpr(lt));
-        env.formula <- add_constraint env.formula ~comment:(Some "lower bound constraint") (SmtBvExpr(ge));
-      )
-    in
-    (* let ins_locs = (List.map (fun input_point -> fst input_point) input_points) in *)
     let ins_locs = fst (List.split input_points) in
     if (List.exists (fun loc -> Int64.compare (Int64.of_int loc) inst.location = 0) ins_locs)
     then
       (
+        let add_var_char_constraints_into_env var_name upper_bound lower_bound =
+          let lt = SmtBvBinary(SmtBvSlt,
+                           SmtBvVar(var_name, 8),
+                           SmtBvCst(Big_int.big_int_of_int upper_bound, 8))
+          and ge = SmtBvBinary(SmtBvSge,
+                           SmtBvVar(var_name, 8),
+                           SmtBvCst(Big_int.big_int_of_int lower_bound, 8))
+          in
+          (
+            env.formula <- add_constraint env.formula ~comment:(Some "upper bound constraint") (SmtBvExpr(lt));
+            env.formula <- add_constraint env.formula ~comment:(Some "lower bound constraint") (SmtBvExpr(ge));
+          )
+        in
         match (snd dbainst) with
         | DbaIkAssign(lhs, expr, offset) ->
           (
