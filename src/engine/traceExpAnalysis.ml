@@ -811,7 +811,7 @@ let save_exploration_result_to_file visited_cpoints result_file =
 
 let print_current_exploration_result visited_cpoints =
   let covered_cpoint_num = ref 0
-  and visited_cpoint_num = ref 0
+  and notcovered_cpoint_num = ref 0
   and uncoverable_cpoint_num = ref 0
   and partially_covered_cpoint_num = ref 0
   in
@@ -819,14 +819,14 @@ let print_current_exploration_result visited_cpoints =
     DynArray.iter (fun cpoint ->
         match cpoint.explored with
         | Covered -> covered_cpoint_num := !covered_cpoint_num + 1
-        | Visited -> visited_cpoint_num := !visited_cpoint_num + 1
+        | Visited -> notcovered_cpoint_num := !notcovered_cpoint_num + 1
         | PartiallyCovered -> partially_covered_cpoint_num := !partially_covered_cpoint_num + 1
         | Uncoverable -> uncoverable_cpoint_num := !uncoverable_cpoint_num + 1
         | _ -> ()
       ) visited_cpoints;
 
-    Printf.printf "visited %d, partially covered %d, covered %d, uncoverable %d\n"
-      !visited_cpoint_num !partially_covered_cpoint_num !covered_cpoint_num !uncoverable_cpoint_num;
+    Printf.printf "not covered %d, partially covered %d, covered %d, uncoverable %d\n"
+      !notcovered_cpoint_num !partially_covered_cpoint_num !covered_cpoint_num !uncoverable_cpoint_num;
     flush stdout
   )
 
