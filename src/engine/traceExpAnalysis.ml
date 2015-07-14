@@ -44,7 +44,27 @@ module IntSet = Set.Make(
   struct
     let compare = Pervasives.compare
     type t = int
-  end)
+  end
+  )
+
+(* module InputSet = Set.Make( *)
+(*   struct *)
+(*     type elt = int list *)
+(*         type  *)
+(*     let exists a  *)
+(*     (\* let compare a b = *\) *)
+(*     (\*   try *\) *)
+(*     (\*     let ab = List.combine a b in *\) *)
+(*     (\*     if (List.exists (fun xy -> fst xy > snd xy)  ab) then 1 *\) *)
+(*     (\*     else if (List.exists (fun xy -> fst xy < snd xy) ab) then -1 *\) *)
+(*     (\*     else 0 *\) *)
+(*     (\*   with *\) *)
+(*     (\*   | Invalid_argument _ -> *\) *)
+(*     (\*     ( *\) *)
+(*     (\*       if List.length a > List.length b then 1 else -1 *\) *)
+(*     (\*     ) *\) *)
+(*   end *)
+(*   ) *)
 
  exception NotVisitedContinuationIndex of int
  exception AllContinuationVisited
@@ -649,7 +669,12 @@ let find_next_unexplored_control_point visited_control_points =
           (DynArray.to_list visited_control_points)
       )
   with
-  | Not_found -> None
+  | Not_found ->
+    (
+      Printf.printf "cannot\n"; flush stdout;
+      None
+    )
+
 
 (* ============================================================================= *)
 
@@ -683,12 +708,12 @@ let find_control_point_index cpoint cpoints =
 
 (* ============================================================================= *)
 
-let create_pseudo_control_point () =
+let create_pseudo_control_point input_point_number =
   Random.self_init ();
   let i = ref 0
   and random_inputs = ref [] in
   (
-    while !i < 1 do
+    while !i < input_point_number do
       random_inputs := (Random.int 127)::!random_inputs;
       i := !i + 1
     done;
@@ -717,10 +742,18 @@ let create_pseudo_control_point () =
 
 (* ============================================================================= *)
 
-let get_exploration_control_point visited_cpoints =
-  if (DynArray.empty visited_cpoints)
-  then create_pseudo_control_point ()
+let get_exploration_control_point visited_cpoints input_point_number first_time_exploration =
+  if (first_time_exploration)
+  then create_pseudo_control_point input_point_number
   else find_next_unexplored_control_point visited_cpoints
+
+  (* if (DynArray.empty visited_cpoints) *)
+  (* then *)
+  (*   ( *)
+  (*     Printf.printf "empty\n"; flush stdout; *)
+  (*     create_pseudo_control_point input_point_number; *)
+  (*   ) *)
+  (* else find_next_unexplored_control_point visited_cpoints *)
 
 (* ============================================================================= *)
 
@@ -748,20 +781,53 @@ let print_exploration_result visited_cpoints =
 (* ============================================================================= *)
 
 let save_exploration_result_to_file visited_cpoints result_file =
-  let explored_values = ref IntSet.empty in
+  let list_equal a b =
+    try
+      let ab = List.combine a b in
+      not (List.exists (fun xy -> fst xy <> snd xy) ab)
+    with
+    | Invalid_argument _ -> false
+  in
+  let explored_values = ref [] in
   (
     DynArray.iter (fun cpoint ->
       match cpoint.explored with
       | Covered ->
         (
           DynArray.iter (fun continuation ->
-              List.iter (fun value -> explored_values := IntSet.add value !explored_values) continuation.input_value) cpoint.continuations
+              if (List.exists (fun elem -> list_equal elem continuation.input_value) !explored_values)
+              then ()
+              else explored_values := continuation.input_value::!explored_values) cpoint.continuations
         )
       | _ -> ()
       ) visited_cpoints;
 
-    let result_string = IntSet.fold (fun value accum -> (Printf.sprintf "0x%x;" value) ^ accum) !explored_values "" in
+    let string_of_input input = List.fold_left (fun accum_str elem -> accum_str ^ (Printf.sprintf "0x%x;" elem)) "" input in
+    let result_string = List.fold_left (fun accum input -> accum ^ "\n" ^ string_of_input input) "" !explored_values in
     Std.output_file result_file result_string
+  )
+
+(* ============================================================================= *)
+
+let print_current_exploration_result visited_cpoints =
+  let covered_cpoint_num = ref 0
+  and visited_cpoint_num = ref 0
+  and uncoverable_cpoint_num = ref 0
+  and partially_covered_cpoint_num = ref 0
+  in
+  (
+    DynArray.iter (fun cpoint ->
+        match cpoint.explored with
+        | Covered -> covered_cpoint_num := !covered_cpoint_num + 1
+        | Visited -> visited_cpoint_num := !visited_cpoint_num + 1
+        | PartiallyCovered -> partially_covered_cpoint_num := !partially_covered_cpoint_num + 1
+        | Uncoverable -> uncoverable_cpoint_num := !uncoverable_cpoint_num + 1
+        | _ -> ()
+      ) visited_cpoints;
+
+    Printf.printf "visited %d, partially covered %d, covered %d, uncoverable %d\n"
+      !visited_cpoint_num !partially_covered_cpoint_num !covered_cpoint_num !uncoverable_cpoint_num;
+    flush stdout
   )
 
 (* ============================================================================= *)
@@ -769,63 +835,64 @@ let save_exploration_result_to_file visited_cpoints result_file =
 let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) (input_points:(int * state_indentifier_t) list) (memory_base_addr:int) (memory_dump_file:string) =
   let visited_cpoints = DynArray.create ()
   and all_explored    = ref false
+  and first_time_exploration = ref true
   and option_filename = generate_option_file exe_filename start_addr stop_addr
   and cs_policy       = new exp_policy_b
   and initial_state   = construct_memory_state_from_file memory_base_addr memory_dump_file Addr64Map.empty
   in
   while not !all_explored do
-    let next_cpoint = get_exploration_control_point visited_cpoints in
-    match next_cpoint with
-    | None ->
-      (
-        all_explored := true;
-
-        Printf.printf "all control points are covered, stop exploration.\n";
-        Printf.printf "===================================================\nexploration results:\n";
-        print_exploration_result visited_cpoints;
-        let exploration_result_file = (Filename.basename exe_filename) ^ ".exp" in
+    print_current_exploration_result visited_cpoints;
+    let next_cpoint = get_exploration_control_point visited_cpoints (List.length input_points) !first_time_exploration in
+    (
+      match next_cpoint with
+      | None ->
         (
-          Printf.printf "===================================================\nsave results to: %s\n" exploration_result_file;
-          save_exploration_result_to_file visited_cpoints exploration_result_file;
-        );
-        flush stdout;
-      )
-    | Some cpoint ->
-      (
-        let config_filename =
-          (* let input_points = [ (0x08048429, Register "eax") ] *)
-          let input_values = get_exploration_input cpoint
+          all_explored := true;
+
+          Printf.printf "all control points are covered, stop exploration.\n";
+          Printf.printf "===================================================\nexploration results:\n";
+          print_exploration_result visited_cpoints;
+          let exploration_result_file = (Filename.basename exe_filename) ^ ".exp" in
+          (
+            Printf.printf "===================================================\nsave results to: %s\n" exploration_result_file;
+            save_exploration_result_to_file visited_cpoints exploration_result_file;
+          );
+          flush stdout;
+        )
+      | Some cpoint ->
+        (
+          let config_filename =
+            let input_values = get_exploration_input cpoint
+            in
+            (
+              if Int64.to_int cpoint.location = 0
+              then Printf.printf "VISIT pseudo control point by input value(s): "
+              else Printf.printf "REVISIT control point at 0x%x with history %d by input value(s): " (Int64.to_int cpoint.location) (List.length cpoint.history);
+              List.iter (fun input -> ignore (Printf.printf "0x%x " input)) input_values;
+              Printf.printf "\n"; flush stdout;
+
+              generate_config_file exe_filename (List.combine input_points input_values)
+            )
           in
           (
-            if Int64.to_int cpoint.location = 0
-            then Printf.printf "VISIT pseudo control point by input value(s): "
-            else Printf.printf "REVISIT control point at 0x%x with history %d by input value(s): " (Int64.to_int cpoint.location) (List.length cpoint.history);
-            List.iter (fun input -> ignore (Printf.printf "0x%x " input)) input_values;
-            Printf.printf "\n"; flush stdout;
+            match (instrument_exe exe_filename option_filename config_filename) with
+            | None ->
+              (
+                Printf.printf "instrumentation error, stop exploration.\n";
+                exit 0
+              )
+            | Some trace_filename ->
+              let exp_instance = new explorer_b trace_filename cs_policy input_points initial_state in
+              (
+                (exp_instance#set_visited_control_points visited_cpoints);
+                (exp_instance#set_target_control_point cpoint);
+                (exp_instance#compute);
 
-            generate_config_file exe_filename (List.combine input_points input_values)
-          )
-        in
-        (
-          match (instrument_exe exe_filename option_filename config_filename) with
-          | None ->
-            (
-              Printf.printf "instrumentation error, stop exploration.\n";
-              exit 0
-            )
-          | Some trace_filename ->
-            let exp_instance = new explorer_b trace_filename cs_policy input_points initial_state in
-            (
-              (exp_instance#set_visited_control_points visited_cpoints);
-              (exp_instance#set_target_control_point cpoint);
-              (exp_instance#compute);
-
-              if (DynArray.empty visited_cpoints)
-              then ()
-              else
-                (
-                  let current_target_cpoint = exp_instance#get_target_control_point in
+                if !first_time_exploration
+                then first_time_exploration := false
+                else
                   (
+                    let current_target_cpoint = exp_instance#get_target_control_point in
                     match find_control_point_index current_target_cpoint visited_cpoints with
                     | None ->
                       (
@@ -834,9 +901,11 @@ let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) (input_po
                       )
                     | Some idx -> DynArray.set visited_cpoints idx current_target_cpoint
                   );
-                  DynArray.append exp_instance#get_new_visited_control_points visited_cpoints
-                )
-            )
+
+                DynArray.append exp_instance#get_new_visited_control_points visited_cpoints
+              )
+          )
         )
-      )
+    )
+
   done
