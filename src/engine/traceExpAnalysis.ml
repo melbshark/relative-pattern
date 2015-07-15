@@ -66,8 +66,8 @@ module IntSet = Set.Make(
 (*   end *)
 (*   ) *)
 
- exception NotVisitedContinuationIndex of int
- exception AllContinuationVisited
+exception NotVisitedContinuationIndex of int
+exception AllContinuationVisited
 
 class exp_policy_a = object(self)
   (* method concsymb_store (tr_index:int) (addr_occ:int) (e_addr:dbaExpr) (e:dbaExpr) (size:int) (inst:trace_inst): concsymb_action * concsymb_action = *)
@@ -109,7 +109,11 @@ class exp_policy_b = object(self)
     (* if (tr_index <= 3) then (Conc, KeepOrSymb(false))
        else (KeepOrSymb(false), KeepOrSymb(false)) *)
 
-    (KeepOrSymb(false), KeepOrSymb(false))
+    if (Int64.compare (Int64.of_int 0x8048619) inst.location = 0) 
+    then (KeepOrSymb(false), Conc)
+    else (KeepOrSymb(false), KeepOrSymb(false))
+
+    (* (KeepOrSymb(false), KeepOrSymb(false)) *)
 
 
   method concsymb_load (tr_index:int) (add_occ:int) (e:dbaExpr) (size:int) (nth_dba:int) (inst:trace_inst) =
@@ -138,16 +142,26 @@ let construct_memory_state (base_address:int) (state_entries:int list) initial_s
 (* ============================================================================= *)
 
 let construct_memory_state_from_file base_address state_entries_filename initial_state =
-  let entries_as_string = Std.input_file ~bin:false state_entries_filename in
-  let entries_as_strings = Str.split (Str.regexp "[;]") entries_as_string in
-  (
-    (* Printf.printf "read %d entries from dump file %s\n" (List.length entries_as_strings) state_entries_filename; *)
-    (* List.iter (fun entry -> *)
-    (*     let value = (int_of_string entry) in Printf.printf "%d " value) entries_as_strings; *)
+  let entries =
+    try
+      let entries_as_string = Std.input_file ~bin:false state_entries_filename in
+      let entries_as_strings = Str.split (Str.regexp "[;]") entries_as_string in
+      List.map (fun str -> int_of_string str) entries_as_strings
+    with
+    | Sys_error _ -> []
+  in construct_memory_state base_address entries initial_state
 
-    let entries = List.map (fun str -> int_of_string str) entries_as_strings in
-    construct_memory_state base_address entries initial_state
-  )
+
+  (* let entries_as_string = Std.input_file ~bin:false state_entries_filename in *)
+  (* let entries_as_strings = Str.split (Str.regexp "[;]") entries_as_string in *)
+  (* ( *)
+  (*   (\* Printf.printf "read %d entries from dump file %s\n" (List.length entries_as_strings) state_entries_filename; *\) *)
+  (*   (\* List.iter (fun entry -> *\) *)
+  (*   (\*     let value = (int_of_string entry) in Printf.printf "%d " value) entries_as_strings; *\) *)
+
+  (*   let entries = List.map (fun str -> int_of_string str) entries_as_strings in *)
+  (*   construct_memory_state base_address entries initial_state *)
+  (* ) *)
 
 (* ============================================================================= *)
 
@@ -274,6 +288,7 @@ class explorer_b (trace_filename:string) concolic_policy (input_positions:(int *
     let formula_file = "formula_if.smt2"
     and trace_pred = self#build_cond_predicate target_cond env in
     (
+      (* Printf.printf "ssize %d\n" (Addr64Map.cardinal mem_state); flush stdout; *)
       (build_formula env.formula trace_pred ~negate:current_cond_prop ~initial_state:mem_state formula_file);
       let result, model = solve_z3_model formula_file in
       (
@@ -555,11 +570,11 @@ class explorer_b (trace_filename:string) concolic_policy (input_positions:(int *
       (
         let add_var_char_constraints_into_env var_name upper_bound lower_bound =
           let lt = SmtBvBinary(SmtBvSlt,
-                           SmtBvVar(var_name, 8),
-                           SmtBvCst(Big_int.big_int_of_int upper_bound, 8))
+                           SmtBvVar(var_name, 32),
+                           SmtBvCst(Big_int.big_int_of_int upper_bound, 32))
           and ge = SmtBvBinary(SmtBvSge,
-                           SmtBvVar(var_name, 8),
-                           SmtBvCst(Big_int.big_int_of_int lower_bound, 8))
+                           SmtBvVar(var_name, 32),
+                           SmtBvCst(Big_int.big_int_of_int lower_bound, 32))
           in
           (
             env.formula <- add_constraint env.formula ~comment:(Some "upper bound constraint") (SmtBvExpr(lt));
@@ -574,7 +589,7 @@ class explorer_b (trace_filename:string) concolic_policy (input_positions:(int *
               (* Printf.printf "add input variable %s\n" var_name; flush stdout; *)
               self#add_witness_variable var_name expr env;
               add_var_char_constraints_into_env var_name 127 0;
-              input_vars <- input_vars@[var_name]
+              input_vars <- input_vars@[var_name];
             )
           )
         | _ -> ()
@@ -669,11 +684,7 @@ let find_next_unexplored_control_point visited_control_points =
           (DynArray.to_list visited_control_points)
       )
   with
-  | Not_found ->
-    (
-      Printf.printf "cannot\n"; flush stdout;
-      None
-    )
+  | Not_found -> ( None )
 
 
 (* ============================================================================= *)
@@ -871,7 +882,7 @@ let explore_exe (exe_filename:string) (start_addr:int) (stop_addr:int) (input_po
               List.iter (fun input -> ignore (Printf.printf "0x%x " input)) input_values;
               Printf.printf "\n"; flush stdout;
 
-              generate_config_file exe_filename (List.combine input_points input_values)
+              generate_config_file exe_filename (List.combine input_points input_values);
             )
           in
           (
