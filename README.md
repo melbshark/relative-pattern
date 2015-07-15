@@ -12,7 +12,7 @@ The code is in active development, still buggy and difficult to use. The [underl
 Though I follow a mathematical approach, seriously I think the main idea is simple. It may be considered implicitly in many practical "unpack tutorials" of great hackers and crackers. The only original contribution here is to give a more solid *theoretical base* that explains these concrete techniques, and this leads to a "less ad-hoc"<sup>4</sup> deobfuscation implementation.
 
 The tool is written mostly in C++ and OCaml, and uses the following great softwares:
-* [BinSec](http://binsec.gforge.inria.fr/)
+* [BinSec](http://binsec.gforge.inria.fr/)<sup>3</sup>
 * [Pin](https://software.intel.com/en-us/articles/pin-a-dynamic-binary-instrumentation-tool)
 * [Boost](http://www.boost.org/)
 * [tinyformat](https://github.com/c42f/tinyformat)
