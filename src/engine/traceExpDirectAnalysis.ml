@@ -47,69 +47,16 @@ module IntSet = Set.Make(
   end
   )
 
-(* module InputSet = Set.Make( *)
-(*   struct *)
-(*     type elt = int list *)
-(*         type  *)
-(*     let exists a  *)
-(*     (\* let compare a b = *\) *)
-(*     (\*   try *\) *)
-(*     (\*     let ab = List.combine a b in *\) *)
-(*     (\*     if (List.exists (fun xy -> fst xy > snd xy)  ab) then 1 *\) *)
-(*     (\*     else if (List.exists (fun xy -> fst xy < snd xy) ab) then -1 *\) *)
-(*     (\*     else 0 *\) *)
-(*     (\*   with *\) *)
-(*     (\*   | Invalid_argument _ -> *\) *)
-(*     (\*     ( *\) *)
-(*     (\*       if List.length a > List.length b then 1 else -1 *\) *)
-(*     (\*     ) *\) *)
-(*   end *)
-(*   ) *)
-
 exception NotVisitedContinuationIndex of int
 exception AllContinuationVisited
 
-
-class exp_policy_a = object(self)
-  (* method concsymb_store (tr_index:int) (addr_occ:int) (e_addr:dbaExpr) (e:dbaExpr) (size:int) (inst:trace_inst): concsymb_action * concsymb_action = *)
-  method concsymb_store (tr_index:int) (addr_occ:int) (e_addr:dbaExpr) (e:dbaExpr) (size:int) (nth_dba:int) (inst:trace_inst): concsymb_action * concsymb_action =
-    if (tr_index = 1)                           (* push ebp *)
-    then (KeepOrConc(false), KeepOrConc(false)) (* concretize both stored address and stored value *)
-    else if (tr_index = 3)                      (* push esi *)
-    then (KeepOrConc(false), KeepOrConc(false)) (* concretize both stored address and stored value *)
-    else if (tr_index = 4)                      (* push ebx *)
-    then (KeepOrConc(false), KeepOrConc(false)) (* concretize both stored address and stored value *)
-    else if (tr_index = 7)                      (* mov [ebp-0xa8],eax *)
-    then (KeepOrConc(false), KeepOrConc(false)) (* concretize both stored address and stored value *)
-    else if (tr_index = 8)                      (* mov [ebp-0xac],0x804b100 <- the address of jump table *)
-    then (KeepOrConc(false), KeepOrConc(false)) (* concretize both stored address and stored value *)
-    else (KeepOrConc(true), KeepOrConc(true))   (* keep the rest as-is *)
-
-  method concsymb_load (tr_index:int) (add_occ:int) (e:dbaExpr) (size:int) (nth_dba:int) (inst:trace_inst): concsymb_action * concsymb_action =
-    (KeepOrSymb(true), KeepOrSymb(true))        (* keep as-is *)
-
-  (* method concsymb_var (tr_index:int) (addr_occ:int) (name:string) (low:int) (hight:int) (nth_dba:int) (inst:trace_inst): concsymb_action = *)
-  (*   if (tr_index = 2)                           (\* mov ebp,esp *\) *)
-  (*   then (KeepOrConc(false), KeepOrConc(false)) (\* concretize assigned value *\) *)
-  (*   else (KeepOrConc(true), KeepOrConc(true))   (\* keep the rest as-is *\) *)
-end;;
+exception ControlPointIndex of int
 
 (* ================================================================================ *)
 
 class exp_policy_b = object(self)
 
   method concsymb_store (tr_index:int) (addr_occ:int) (e_addr:dbaExpr) (e:dbaExpr) (size:int) (nth_dba:int) (inst:trace_inst): concsymb_action * concsymb_action =
-    (* if (Int64.compare (Int64.of_string "0x08048c22") inst.location) = 0 *)
-    (* then (Conc, KeepOrSymb(false)) *)
-    (* (\* else if (Int64.compare (Int64.of_string "0x08048c4b") inst.location) = 0 *\) *)
-    (* (\* then (KeepOrConc(true), Conc) *\) *)
-    (* (\* else if (Int64.compare (Int64.of_string "0x08048c43") inst.location) <= 0 *\) *)
-    (* (\* then (Conc, KeepOrSymb(true)) *\) *)
-    (* else (KeepOrSymb(false), KeepOrSymb(false)) *)
-
-    (* if (tr_index <= 3) then (Conc, KeepOrSymb(false))
-       else (KeepOrSymb(false), KeepOrSymb(false)) *)
-
     if (Int64.compare (Int64.of_int 0x8048619) inst.location = 0)
     then (KeepOrSymb(false), Conc)
     else (KeepOrSymb(false), KeepOrSymb(false))
@@ -152,18 +99,6 @@ let construct_memory_state_from_file base_address state_entries_filename initial
     | Sys_error _ -> []
   in construct_memory_state base_address entries initial_state
 
-
-  (* let entries_as_string = Std.input_file ~bin:false state_entries_filename in *)
-  (* let entries_as_strings = Str.split (Str.regexp "[;]") entries_as_string in *)
-  (* ( *)
-  (*   (\* Printf.printf "read %d entries from dump file %s\n" (List.length entries_as_strings) state_entries_filename; *\) *)
-  (*   (\* List.iter (fun entry -> *\) *)
-  (*   (\*     let value = (int_of_string entry) in Printf.printf "%d " value) entries_as_strings; *\) *)
-
-  (*   let entries = List.map (fun str -> int_of_string str) entries_as_strings in *)
-  (*   construct_memory_state base_address entries initial_state *)
-  (* ) *)
-
 (* ============================================================================= *)
 
 let find_not_visited_continuation_index control_point =
@@ -204,99 +139,69 @@ let find_visiting_continuation_index control_point =
 (* ============================================================================= *)
 
 (* moteur d'execution spécial *)
-class explorer_b (trace_filename:string) concolic_policy (input_positions:(int * state_indentifier_t) list) initial_memory_state = object(self)
+class explorer_c (trace_filename:string) concolic_policy (input_positions:(int * state_indentifier_t) list) initial_memory_state = object(self)
   inherit trace_analysis trace_filename concolic_policy as super
 
-  (* val jump_table_address = 0x804a01c *)
-  (* val jump_table_dump_file = "mobfus.dump" *)
   val initial_state = initial_memory_state
 
-  val mutable input_is_parameterized = false
-  val mutable start_exploring = false
-
-  (* the control point (conditional or dynamic jumps) that we need to explore *)
-  val mutable target_control_point =
-    {
-      location        = Int64.of_int 0;
-      history         = [];
-      continuations   = DynArray.create ();
-      explored        = Visited;
-      control_type    = ConJump
-    }
-
-  method set_target_control_point cpoint = (target_control_point <- cpoint)
-  method get_target_control_point = target_control_point
-
-  (* in executing to the target control point, we need re-tracing the program, the following list respresent the current trace *)
   val accumulated_ins_locs : (int64 DynArray.t) = DynArray.create ()
   val mutable current_inst_idx = 0
 
-  (* the new control points that we will visit by following a new direction of the target control point *)
   val new_visited_control_points : (exe_control_point_t DynArray.t) = DynArray.create ()
   method get_new_visited_control_points = new_visited_control_points
 
-  (* the control points that we have visited *)
+
   val visited_control_points : (exe_control_point_t DynArray.t) = DynArray.create ()
   method set_visited_control_points cpoints =
-    (DynArray.clear visited_control_points);
-    (DynArray.append cpoints visited_control_points)
+    (
+      (DynArray.clear visited_control_points);
+      (DynArray.append cpoints visited_control_points)
+    )
 
-  (* val input_points = [ (0x08048429, Register "eax") ] *)
   val input_points = input_positions
   method get_input_points = input_points
 
   val mutable input_vars = []
   method get_input_vars = input_vars
 
+  val mutable current_inputs = []
+  method set_current_inputs inputs = current_inputs <- inputs
+  method get_current_inputs = current_inputs
 
-  method private get_dynamic_jmp_new_input_values target_expr target_var_name input_var_names current_target_addr_input_values_pair mem_state env =
-    (self#add_witness_variable target_var_name target_expr env);
-    let formula_file = "formula_djump.smt2" in
-    let rec get_possible_targets collected_target_addr_input_values_pairs =
-      let collected_addrs = fst (List.split collected_target_addr_input_values_pairs) in
-      (* fold_left : ('a -> 'b -> 'a) -> 'a -> 'b list -> 'a *)
-      let local_pred = List.fold_left (fun current_pred addr ->
-          (SmtNot(self#build_witness_bitvector_comparison_predicate target_var_name env.addr_size addr))::current_pred)
-          [] collected_addrs
-      in
-      let trace_pred = self#build_multiple_condition_predicate local_pred in
-      (
-        (build_formula env.formula trace_pred ~negate:false ~initial_state:mem_state ~inline_fun:false formula_file);
-        let result, model = solve_z3_model formula_file in
-        try
-          match result with
-          | SAT ->
-            (
-              let input_values = List.map (fun input_var_name -> Big_int.int_of_big_int (fst (get_bitvector_value model input_var_name)))  input_var_names
-              and target_addr = get_bitvector_value model target_var_name in
-              get_possible_targets ((target_addr, input_values)::collected_target_addr_input_values_pairs)
-            )
-          | UNSAT -> collected_target_addr_input_values_pairs
-        with
-        | _ ->
-          (
-            Printf.printf "parsing smt formula error.\n"; flush stdout;
-            assert false
-          )
-      )
+  (* ================================== visiting methods ================================== *)
+
+  method visit_instr_before (key:int) (inst:trace_inst) (env:analysis_env) = (* of type trace_visit_action *)
+    DoExec
+
+  method visit_instr_after (key:int) (inst:trace_inst) (env:analysis_env) =
+    (current_inst_idx <- current_inst_idx + 1);
+    (DynArray.add accumulated_ins_locs inst.location);
+    DoExec
+
+  method private find_index_of_current_instruction_in_visisted_control_points inst =
+    let inst_history = DynArray.to_list accumulated_ins_locs in
+    let is_the_same_history hist =
+      try
+        let history_pair = List.combine hist inst_history in
+        not List.exists (fun pair_elem -> snd pair_elem <> fst pair_elem) history_pair
+      with
+      | _ -> false
     in
-    (
-      (* copy from http://langref.org/fantom+ocaml+java/lists/modification/remove-last *)
-      let remove_last lls =
-        match (List.rev lls) with
-        | h::t -> List.rev t
-        | [] -> []
-      in
-      let all_targets = get_possible_targets [current_target_addr_input_values_pair] in
-      snd (List.split (remove_last all_targets))
-    )
+    let idx = ref 0 in
+    try
+      DynArray.iter (fun cpoint ->
+          if is_the_same_history cpoint.history
+          then raise ControlPointIndex !idx
+          else idx := !idx + 1)
+        visited_control_points;
+      None
+    with
+    | ControlPointIndex i -> Some i
 
-
-  method private get_conditional_jmp_new_input_values target_cond input_var_names current_cond_prop mem_state env =
+  method private get_conditional_jump_new_input_values target_cond input_var_names current_cond_prop mem_state env =
     let formula_file = "formula_if.smt2"
     and trace_pred = self#build_cond_predicate target_cond env in
     (
-      (* Printf.printf "ssize %d\n" (Addr64Map.cardinal mem_state); flush stdout; *)
       (build_formula env.formula trace_pred ~negate:current_cond_prop ~initial_state:mem_state ~inline_fun:false formula_file);
       try
         let result, model = solve_z3_model formula_file in
@@ -313,268 +218,75 @@ class explorer_b (trace_filename:string) concolic_policy (input_positions:(int *
         )
     )
 
-
-  (* ================================== visiting methods ================================== *)
-
-  method visit_instr_before (key:int) (inst:trace_inst) (env:analysis_env) = (* of type trace_visit_action *)
-    DoExec
-
-  method visit_instr_after (key:int) (inst:trace_inst) (env:analysis_env) =
-    (current_inst_idx <- current_inst_idx + 1);
-    (DynArray.add accumulated_ins_locs inst.location);
-    DoExec
-
-
-  method private add_new_control_point inst dbainst addr_size =
-    let current_conti_idx = find_visiting_continuation_index target_control_point in
-    match current_conti_idx with
-    | Some idx ->
-      (
-        let current_conti = DynArray.get target_control_point.continuations idx in
-        let current_input_value = current_conti.input_value in
-        let new_continuation = { next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos addr_size));
-                                 input_value = current_input_value } in
-        let c_type =
-          match snd dbainst with
-          | DbaIkIf _ -> ConJump
-          | DbaIkDJump _ -> DynJump
-          | _ -> assert false
-        in
-        let new_visited_control_point = { location      = inst.location;
-                                          history       = DynArray.to_list accumulated_ins_locs;
-                                          continuations = DynArray.init 1 (fun _ -> new_continuation);
-                                          explored      = Visited;
-                                          control_type  = c_type }
-        in
+  method private calculate_conditional_jump_continuations cond address inst env =
+    let cond_prop = Big_int.eq_big_int address (fst (get_next_address inst.concrete_infos env.addr_size)) in
+    let new_input_values = self#get_conditional_jmp_new_input_values cond input_vars cond_prop initial_state env in
+    (
+      let new_continuations = 
+        match new_input_values with
+        | [] -> []
+        | values ->
         (
-          Printf.printf "add new control point at 0x%x with history %d\n" (Int64.to_int new_visited_control_point.location)
-            (List.length new_visited_control_point.history);
-
-          (DynArray.add new_visited_control_points new_visited_control_point);
+          [{ next_location = Int64.of_int 0; input_value = values }]
         )
-      )
-    | _ -> assert false
+      and current_continuation = { next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size));
+                                   input_value = current_inputs }
+      in
+      current_continuation::new_continuations
+    )
 
-
-  method private update_dynamic_jump_continuations dbainst inst (env:analysis_env) =
+  method private add_new_control_point_for_conditional_jump inst dbainst addr_size =
     match snd dbainst with
-    | DbaIkAssign (DbaLhsVar(var, size, tags), expr, offset) ->
+    | DbaIkIf (cond, NonLocal((address, _), _), offset) ->
       (
-        if self#is_symbolic_expression expr env
-        then
-          (
-            (* let init_state = construct_memory_state jump_table_address jump_table_entries Addr64Map.empty *)
-            (* let init_state = construct_memory_state_from_file jump_table_address jump_table_dump_file Addr64Map.empty *)
-            let current_target_addr = get_regwrite_value_bv "ecx" inst.concrete_infos env.addr_size
-            and current_input_value = (DynArray.get target_control_point.continuations 0).input_value
-            in
-            let new_input_values = self#get_dynamic_jmp_new_input_values
-                expr "jump_address" input_vars (current_target_addr, current_input_value) initial_state env
-            in
-            (
-              match new_input_values with
-              | [] ->
-                (
-                  (target_control_point.explored <- Uncoverable);
-
-                  Printf.printf "dynamic jump at 0x%x with history %d is UNCOVERABLE\n" (Int64.to_int target_control_point.location)
-                    (List.length target_control_point.history); flush stdout;
-                )
-              | input_values ->
-                (
-                  (target_control_point.explored <- JustCovered);
-
-                  Printf.printf "dynamic jump at 0x%x with history %d is JUST COVERED\n" (Int64.to_int target_control_point.location)
-                    (List.length target_control_point.history); flush stdout;
-
-                  List.iter (fun value ->
-                      let new_continuation = { next_location = Int64.of_int 0; input_value = value }
-                      in DynArray.add target_control_point.continuations new_continuation
-                    ) input_values
-                )
-            );
-          )
-        else
-          (
-            (target_control_point.explored <- Uncoverable);
-
-            Printf.printf "dynamic jump at 0x%x with history %d is UNCOVERABLE.\n" (Int64.to_int target_control_point.location)
-              (List.length target_control_point.history); flush stdout;
-          )
+        let all_continuations = calculate_conditional_jump_continuations cond address inst env in
+        (
+          let new_cpoint = { location = inst.location;
+                             history = DynArray.to_list accumulated_ins_locs;
+                             continuations = all_continuations;
+                             explored = if List.length all_continuations = 1 then Uncoverable else PartiallyCovered;
+                             control_type = ConJump }
+          in DynArray.add new_visited_control_points new_cpoint
+        )
       )
     | _ -> ()
 
-
-  method private update_dynamic_jump_next_continuation inst (env:analysis_env) =
-    match find_not_visited_continuation_index target_control_point with
-    | Some idx ->
+  method private update_continuation_of_control_point_at_index idx inst addr_size =
+    try
+      let current_cpoint = DynArray.get visited_control_points idx in
+      let current_continuations = current_cpoint.continuations in
+      let new_continuations = List.map (fun cont =
+                                         let input_pairs = List.combine cont.input_value current_inputs in
+                                         let is_equal = not List.exists (fun elem -> fst elem <> snd elem) input_pairs in
+                                         if (is_equal)
+                                         then { next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos addr_size));
+                                                input_value = current_inputs }
+                                         else cont) current_continuations
+      in
+      let new_cpoint = { current_cpoint where continuations = new_continuations } in
+      DynArray.set visited_control_points idx new_cpoint
+    with
+    | _ ->
       (
-        let new_continuation = { (DynArray.get target_control_point.continuations idx)
-                                 with next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size))}
-        in DynArray.set target_control_point.continuations idx new_continuation;
-
-        if (idx = DynArray.length target_control_point.continuations - 1)
-        then
-          (
-            (target_control_point.explored <- Covered);
-
-            Printf.printf "dynamic jump at 0x%x with history %d is COMPLETELY COVERED\n" (Int64.to_int target_control_point.location)
-              (List.length target_control_point.history); flush stdout;
-          )
-        else
-          (
-            (target_control_point.explored <- PartiallyCovered);
-
-            Printf.printf "dynamic jump at 0x%x with history %d is PARTIALLY COVERED\n" (Int64.to_int target_control_point.location)
-              (List.length target_control_point.history); flush stdout;
-          )
-        (* DoExec *)
+        Printf.printf "control point not found\n"; flust stdout;
+        assert false
       )
-    | None -> assert false;
-
-
-  method private update_dynamic_jump_first_continuation inst (env:analysis_env) =
-    let new_continuation = { (DynArray.get target_control_point.continuations 0)
-                             with next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size)) }
-    in DynArray.set target_control_point.continuations 0 new_continuation;
-
-    Printf.printf "dynamic jump at 0x%x with history %d is PARTIALLY COVERED\n" (Int64.to_int target_control_point.location)
-      (List.length target_control_point.history); flush stdout;
-
-    (target_control_point.explored <- PartiallyCovered);
-
-
-  method private calculate_conditional_jump_continuations cond address inst (env:analysis_env) =
-    let cond_prop = Big_int.eq_big_int address (fst (get_next_address inst.concrete_infos env.addr_size)) in
-    (* and init_state = construct_memory_state new_jump_table_address new_jump_table_entries Addr64Map.empty in *)
-    (* and init_state = construct_memory_state_from_file jump_table_address jump_table_dump_file Addr64Map.empty in *)
-    let new_input_values = self#get_conditional_jmp_new_input_values cond input_vars cond_prop initial_state env in
-    (
-      match new_input_values with
-      | [] ->
-        (
-          (target_control_point.explored <- Uncoverable);
-
-          Printf.printf "conditional jump at 0x%x with history %d is UNCOVERABLE\n" (Int64.to_int target_control_point.location)
-            (List.length target_control_point.history); flush stdout;
-        )
-      | values ->
-        (
-          let new_continuation = { next_location = Int64.of_int 0; input_value =  values }
-          in DynArray.add target_control_point.continuations new_continuation;
-
-          (target_control_point.explored <- PartiallyCovered);
-
-          Printf.printf "conditional jump at 0x%x with history %d is PARTIALLY COVERED\n" (Int64.to_int target_control_point.location)
-            (List.length target_control_point.history); flush stdout;
-        )
-    );
-
-
-  method private update_conditional_jump_next_continuation inst (env:analysis_env) =
-    let new_continuation = { (DynArray.get target_control_point.continuations 1)
-                             with next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size)) }
-    in DynArray.set target_control_point.continuations 1 new_continuation;
-
-    (target_control_point.explored <- Covered);
-
-    Printf.printf "conditional jump at 0x%x with history %d is COMPLETELY COVERED\n" (Int64.to_int target_control_point.location)
-      (List.length target_control_point.history); flush stdout;
-
 
   method visit_dbainstr_before (key:int) (inst:trace_inst) (dbainst:dbainstr) (env:analysis_env) =
-    if (List.length target_control_point.history = 0) || (DynArray.length accumulated_ins_locs > List.length target_control_point.history)
-    then
+    match snd dbainst with
+    | DbaIkIf (cond, NonLocal((address, _), _), offset) ->
       (
-        match target_control_point.explored with
-        | Visited | Covered | PartiallyCovered ->
+        match self#find_index_of_current_instruction_in_visited_control_points inst with
+        | None ->
           (
-            match snd dbainst with
-            | DbaIkIf (_, NonLocal((_, _), _), _) | DbaIkDJump _ -> self#add_new_control_point inst dbainst env.addr_size
-            | _ -> ()
-          );
-          DoExec
-        | _ -> assert false
-      )
-    else
-      (
-        if (DynArray.length accumulated_ins_locs = List.length target_control_point.history)
-        then
-          (
-            match snd dbainst with
-            | DbaIkIf (cond, NonLocal((address, _), _), offset) ->
-              if self#is_symbolic_condition cond env
-              then
-                (
-                  match target_control_point.explored with
-                  | PartiallyCovered ->
-                    (
-                      (self#update_conditional_jump_next_continuation inst env);
-                      DoExec
-                    )
-                  | Visited ->
-                    (
-                      (self#calculate_conditional_jump_continuations cond address inst env);
-                      StopExec
-                    )
-                  | _ ->
-                    (
-                      (* Printf.printf "Failed at 0x%x %s\n" (Int64.to_int inst.location) inst.opcode; flush stdout; *)
-                      assert false
-                    )
-                )
-              else
-                (
-                  Printf.printf "conditional jump at 0x%x with history %d is UNCOVERABLE\n" (Int64.to_int target_control_point.location)
-                    (List.length target_control_point.history); flush stdout;
-
-                  (target_control_point.explored <- Uncoverable);
-                  StopExec
-                )
-            | DbaIkDJump _ ->
-              (
-                match target_control_point.explored with
-                | JustCovered ->
-                  (
-                    (self#update_dynamic_jump_first_continuation inst env);
-                    StopExec
-                  )
-                | PartiallyCovered ->
-                  (
-                    (self#update_dynamic_jump_next_continuation inst env);
-                    DoExec
-                  )
-                | Uncoverable -> StopExec
-                | _ ->
-                  (
-                    Printf.printf "Failed at 0x%x %s\n" (Int64.to_int inst.location) inst.opcode;
-                    assert false
-                  )
-              )
-
-            | _ ->
-              (
-                (* remember that an instruction contains several dba instructions then the dba
-                   instrution handled here may not be a conditional nor a dynamic jump *)
-                DoExec
-              )
+            add_new_control_point_for_conditional_jump inst dbainst addr_size
           )
-        else
+        | Some idx ->
           (
-            if (DynArray.length accumulated_ins_locs = List.length target_control_point.history - 1)
-            then
-              match target_control_point.control_type with
-              | DynJump ->
-                (
-                  match target_control_point.explored with
-                  | Visited -> self#update_dynamic_jump_continuations dbainst inst env
-                  | _ -> ()
-                )
-              | _ -> ()
-            else ();
-            DoExec
+
           )
       )
+
 
   (* ============================================================================= *)
   (* mark the input *)
