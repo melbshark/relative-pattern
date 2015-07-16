@@ -9,7 +9,7 @@ This is a tool experimenting a *formal method* to recover program control flow g
 
 The code is in active development, still buggy and difficult to use. The [underlying concolic execution engine](http://binsec.gforge.inria.fr/) are not fully published yet<sup>3</sup>, though the current published code can work with any concolic/fuzzing engine. Moreover *the strength of this tool depends only on the execution engine*, that is a rational theoretical limit of the method.
 
-Though I follow a mathematical approach, seriously I think the main idea is simple. It may be considered implicitly in many practical "unpack tutorials" of great hackers and crackers. The only original contribution here is to give a more solid *theoretical base* that explains these concrete techniques, and this leads to a "less ad-hoc"<sup>4</sup> deobfuscation implementation.
+Though I follow a mathematical approach, the main idea is simple. It may be considered implicitly in many practical "unpack tutorials" of great hackers and crackers. The only original contribution here is to give a more solid *theoretical base* that explains these concrete techniques, and this leads to a "less ad-hoc" deobfuscation technique.
 
 The tool is written mostly in C++ and OCaml, and uses the following great softwares:
 * [BinSec](http://binsec.gforge.inria.fr/)<sup>3</sup>
@@ -28,5 +28,3 @@ Currently there is no documentation (if you are interested in, I am very happy t
 <sup>2</sup>Collected from [crackmes.de](http://crackmes.de/).
 
 <sup>3</sup>[BinSec](http://binsec.gforge.inria.fr/) is in very active development and it will be open when it is ready, some technical documents and (rather old) source codes can be referenced [here](http://sebastien.bardin.free.fr/binsec.html).
-
-<sup>4</sup>Hopefully.
