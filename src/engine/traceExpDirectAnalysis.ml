@@ -173,10 +173,14 @@ class explorer_c (trace_filename:string) concolic_policy (input_positions:(int *
   method visit_instr_before (key:int) (inst:trace_inst) (env:analysis_env) = (* of type trace_visit_action *)
     DoExec
 
+  (* ============================================================================= *)
+
   method visit_instr_after (key:int) (inst:trace_inst) (env:analysis_env) =
     (current_inst_idx <- current_inst_idx + 1);
     (DynArray.add accumulated_ins_locs inst.location);
     DoExec
+
+  (* ============================================================================= *)
 
   method private find_index_of_current_instruction_in_visisted_control_points inst =
     let inst_history = DynArray.to_list accumulated_ins_locs in
@@ -198,6 +202,31 @@ class explorer_c (trace_filename:string) concolic_policy (input_positions:(int *
     with
     | ControlPointIndex i -> Some i
 
+  (* ============================================================================= *)
+
+  method private find_index_of_next_instruction_in_visited_control_points inst addr_size =
+    let inst_history = DynArray.to_list accumulated_ins_locs
+    and next_inst_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos addr_size)) in
+    let next_inst_history = inst_history@[next_inst_location] in
+    let is_the_same_history hist =
+      try
+        let history_pair = List.combine hist next_inst_history in
+        not List.exists (fun pair_elem -> snd pair_elem <> fst pair_elem) history_pair
+      with
+      | _ -> false
+    in
+    let idx = ref 0 in
+    try
+      DynArray.iter (fun cpoint -> if is_the_same_history cpoint.history
+                      then raise ControlPointIndex !idx
+                      else idx := !idx + 1)
+        visited_control_points;
+      None
+    with
+    | ControlPointIndex i -> Some i
+
+  (* ============================================================================= *)
+
   method private get_conditional_jump_new_input_values target_cond input_var_names current_cond_prop mem_state env =
     let formula_file = "formula_if.smt2"
     and trace_pred = self#build_cond_predicate target_cond env in
@@ -218,11 +247,13 @@ class explorer_c (trace_filename:string) concolic_policy (input_positions:(int *
         )
     )
 
+  (* ============================================================================= *)
+
   method private calculate_conditional_jump_continuations cond address inst env =
     let cond_prop = Big_int.eq_big_int address (fst (get_next_address inst.concrete_infos env.addr_size)) in
     let new_input_values = self#get_conditional_jmp_new_input_values cond input_vars cond_prop initial_state env in
     (
-      let new_continuations = 
+      let new_continuations =
         match new_input_values with
         | [] -> []
         | values ->
@@ -235,42 +266,82 @@ class explorer_c (trace_filename:string) concolic_policy (input_positions:(int *
       current_continuation::new_continuations
     )
 
+  (* ============================================================================= *)
+
   method private add_new_control_point_for_conditional_jump inst dbainst addr_size =
     match snd dbainst with
     | DbaIkIf (cond, NonLocal((address, _), _), offset) ->
       (
         let all_continuations = calculate_conditional_jump_continuations cond address inst env in
-        (
-          let new_cpoint = { location = inst.location;
-                             history = DynArray.to_list accumulated_ins_locs;
-                             continuations = all_continuations;
-                             explored = if List.length all_continuations = 1 then Uncoverable else PartiallyCovered;
-                             control_type = ConJump }
-          in DynArray.add new_visited_control_points new_cpoint
-        )
+        let new_cpoint = { location = inst.location;
+                           history = DynArray.to_list accumulated_ins_locs;
+                           continuations = all_continuations;
+                           explored = if List.length all_continuations = 1 then Uncoverable else PartiallyCovered;
+                           control_type = ConJump }
+        in DynArray.add new_visited_control_points new_cpoint
       )
     | _ -> ()
 
+  (* ============================================================================= *)
+
+  method private add_new_control_point_for_dynamic_jump inst dbainst addr_size =
+    match snd dbainst with
+    | DbaIkDJump _ ->
+      (
+        let current_continuation = { next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size));
+                                     input_value = current_inputs }
+        in
+        let new_cpoint = { location = inst.location;
+                           history = DynArray.to_list accumulated_ins_locs;
+                           continuations = DynArray.init 1 (fun _ -> current_continuation);
+                           explored = Visited;
+                           control_type = DynJump }
+        in DynArray new_visited_control_points new_cpoint
+      )
+    | _ -> ()
+
+  (* ============================================================================= *)
+
   method private update_continuation_of_control_point_at_index idx inst addr_size =
     try
+      let continuation_is_updated = ref false in
       let current_cpoint = DynArray.get visited_control_points idx in
       let current_continuations = current_cpoint.continuations in
-      let new_continuations = List.map (fun cont =
-                                         let input_pairs = List.combine cont.input_value current_inputs in
-                                         let is_equal = not List.exists (fun elem -> fst elem <> snd elem) input_pairs in
-                                         if (is_equal)
-                                         then { next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos addr_size));
-                                                input_value = current_inputs }
-                                         else cont) current_continuations
+      let new_continuations =
+        List.map (fun cont =
+                   let input_pairs = List.combine cont.input_value current_inputs in
+                   let is_equal = not List.exists (fun elem -> fst elem <> snd elem) input_pairs in
+                   if (is_equal)
+                   then
+                     if Int64.to_int cont.next_location = 0
+                     then { next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos addr_size));
+                            input_value = current_inputs }
+                     else
+                       (
+                         continuation_is_updated := true;
+                         cont
+                       )
+                   else cont) current_continuations
       in
-      let new_cpoint = { current_cpoint where continuations = new_continuations } in
-      DynArray.set visited_control_points idx new_cpoint
+      if !continuation_is_updated
+      then ()
+      else
+        (
+          let new_cpoint =
+          if not List.exists (fun cont -> Int64.to_int cont.location = 0)
+          then { current_cpoint where continuations = new_continuations; explored = Covered }
+          else { current_cpoint where continuations = new_continuations }
+          in
+          DynArray.set visited_control_points idx new_cpoint
+        )
     with
     | _ ->
       (
         Printf.printf "control point not found\n"; flust stdout;
         assert false
       )
+
+  (* ============================================================================= *)
 
   method visit_dbainstr_before (key:int) (inst:trace_inst) (dbainst:dbainstr) (env:analysis_env) =
     match snd dbainst with
@@ -279,12 +350,30 @@ class explorer_c (trace_filename:string) concolic_policy (input_positions:(int *
         match self#find_index_of_current_instruction_in_visited_control_points inst with
         | None ->
           (
-            add_new_control_point_for_conditional_jump inst dbainst addr_size
+            add_new_control_point_for_conditional_jump inst dbainst env.addr_size
           )
         | Some idx ->
           (
-
+            update_continuation_of_control_point_at_index idx inst env.addr_size
           )
+      )
+    | DbaIkDJump _ ->
+      (
+        match self#find_index_of_current_instruction_in_visited_control_points inst with
+        | None ->
+          (
+            add_new_control_point_for_dynamic_jump inst dbainst env.addr_size
+          )
+        | Some idx ->
+          (
+            update_continuation_of_control_point_at_index idx inst env.addr_size
+          )
+      )
+    | DbaIkAssign (DbaLhsVar(var, size, tags), expr, offset) ->
+      (
+        match self#find_index_of_next_instruction_in_visited_control_points inst env.addr_size with
+        | None -> ()
+        | Some idx -> ()
       )
 
 
