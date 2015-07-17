@@ -227,11 +227,13 @@ class explorer_c (trace_filename:string) concolic_policy (input_positions:(int *
 
   (* ============================================================================= *)
 
-  method private get_conditional_jump_new_input_values target_cond input_var_names current_cond_prop mem_state env =
+  method private get_conditional_jump_new_input_values target_cond input_var_names inst env =
     let formula_file = "formula_if.smt2"
     and trace_pred = self#build_cond_predicate target_cond env in
     (
-      (build_formula env.formula trace_pred ~negate:current_cond_prop ~initial_state:mem_state ~inline_fun:false formula_file);
+      let cond_prop = Big_int.eq_big_int address (fst (get_next_address inst.concrete_infos env.addr_size)) in
+      (build_formula env.formula trace_pred ~negate:cond_prop ~initial_state:initial_state ~inline_fun:false formula_file);
+
       try
         let result, model = solve_z3_model formula_file in
         (
@@ -249,21 +251,12 @@ class explorer_c (trace_filename:string) concolic_policy (input_positions:(int *
 
   (* ============================================================================= *)
 
-  method private calculate_conditional_jump_continuations cond address inst env =
-    let cond_prop = Big_int.eq_big_int address (fst (get_next_address inst.concrete_infos env.addr_size)) in
-    let new_input_values = self#get_conditional_jmp_new_input_values cond input_vars cond_prop initial_state env in
+  method private calculate_conditional_jump_new_continuations cond inst env =
+    let new_input_values = self#get_conditional_jmp_new_input_values cond input_vars inst env in
     (
-      let new_continuations =
-        match new_input_values with
-        | [] -> []
-        | values ->
-        (
-          [{ next_location = Int64.of_int 0; input_value = values }]
-        )
-      and current_continuation = { next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size));
-                                   input_value = current_inputs }
-      in
-      current_continuation::new_continuations
+      match new_input_values with
+      | [] -> []
+      | values -> [{next_location = Int64.of_int 0; input_value = values}]
     )
 
   (* ============================================================================= *)
@@ -272,31 +265,116 @@ class explorer_c (trace_filename:string) concolic_policy (input_positions:(int *
     match snd dbainst with
     | DbaIkIf (cond, NonLocal((address, _), _), offset) ->
       (
-        let all_continuations = calculate_conditional_jump_continuations cond address inst env in
-        let new_cpoint = { location = inst.location;
-                           history = DynArray.to_list accumulated_ins_locs;
-                           continuations = all_continuations;
-                           explored = if List.length all_continuations = 1 then Uncoverable else PartiallyCovered;
-                           control_type = ConJump }
+        let next_inst_address = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size)) in
+        let current_continuation = { next_location = next_inst_address; input_value = current_inputs }
+        and other_continuations =
+          if self#is_symbolic_condition cond env
+          then self#calculate_conditional_jump_new_continuations cond address inst env
+          else []
+        in
+        let new_cpoint =
+          {
+            location      = inst.location;
+            history       = DynArray.to_list accumulated_ins_locs;
+            continuations = current_continuation::other_continuations;
+            explored      = if List.length other_continuations = 0 then Uncoverable else PartiallyCovered;
+            control_type  = ConJump
+          }
         in DynArray.add new_visited_control_points new_cpoint
       )
     | _ -> ()
 
   (* ============================================================================= *)
 
-  method private add_new_control_point_for_dynamic_jump inst dbainst addr_size =
+  method private get_dynamic_jump_new_input_values target_expr current_target_address_input_value_pair env =
+    let target_var_name = "jump_address" in
+    (
+      (self#add_witness_variable target_var_name target_expr env);
+
+      let formula_file = "formula_djump.smt2" in
+      let rec get_possible_targets collected_target_addr_input_values_pairs =
+        let collected_addrs = fst (List.split collected_target_addr_input_values_pairs) in
+        let target_var_diff_from_addr_pred addr =
+          SmtNot(self#build_witness_bitvector_comparison_predicate target_var_name env.addr_size addr)
+        in
+        let local_pred = List.fold_left (* fold_left : ('a -> 'b -> 'a) -> 'a -> 'b list -> 'a *)
+            (fun current_pred addr -> (target_var_diff_from_addr_pred addr)::current_pred)
+            [] collected_addrs
+        in
+        let trace_pred = self#build_multiple_condition_predicate local_pred in
+        (
+          (build_formula env.formula trace_pred ~negate:false ~initial_state:initial_state ~inline_fun:false formula_file);
+          let result, model = solve_z3_model formula_file in
+          try
+            match result with
+            | SAT ->
+              (
+                let input_values = List.map (fun input_var -> Big_int.int_of_big_int (fst (get_bitvector_value model input_var)))  input_vars
+                and target_addr = Big_int.int64_of_big_int (fst (get_bitvector_value model target_var_name)) in
+                get_possible_targets ((target_addr, input_values)::collected_target_addr_input_values_pairs)
+              )
+            | UNSAT -> collected_target_addr_input_values_pairs
+          with
+          | _ ->
+            (
+              Printf.printf "parsing smt result error.\n"; flush stdout;
+              assert false
+            )
+        )
+      in
+      (
+        (* copied from http://langref.org/fantom+ocaml+java/lists/modification/remove-last *)
+        let remove_last lls =
+          match (List.rev lls) with
+          | h::t -> List.rev t
+          | [] -> []
+        in
+        let all_targets = get_possible_targets [current_target_addr_input_values_pair] in
+        snd (List.split (remove_last all_targets))
+      )
+    )
+
+    (* ============================================================================= *)
+
+  method private calculate_dynamic_jump_new_continuations expr inst dbainst env =
+    let current_target_addr = get_regwrite_value_bv "ecx" inst.concrete_infos env.addr_size in
+    let new_target_addr_input_value_pairs = self#get_dynamic_jump_new_input_values expr (current_target_addr, current_inputs) env in
+    if List.length new_target_addr_input_value_pairs = 0
+    then []
+    else
+      (
+        List.map (
+          fun target_addr_input_value -> { next_location = fst target_addr_input_value; input_value = snd target_addr_input_value }
+        ) new_target_addr_input_value_pairs
+      )
+
+
+
+  (* ============================================================================= *)
+
+  method private add_new_control_point_for_dynamic_jump inst dbainst env =
     match snd dbainst with
     | DbaIkDJump _ ->
       (
-        let current_continuation = { next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size));
-                                     input_value = current_inputs }
+        let next_inst_address = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos env.addr_size)) in
+        let current_continuation =
+          {
+            next_location = next_inst_address;
+            input_value   = current_inputs
+          }
         in
-        let new_cpoint = { location = inst.location;
-                           history = DynArray.to_list accumulated_ins_locs;
-                           continuations = DynArray.init 1 (fun _ -> current_continuation);
-                           explored = Visited;
-                           control_type = DynJump }
+        let new_cpoint =
+          {
+            location      = inst.location;
+            history       = DynArray.to_list accumulated_ins_locs;
+            continuations = DynArray.init 1 (fun _ -> current_continuation);
+            explored      = Visited;
+            control_type  = DynJump
+          }
         in DynArray new_visited_control_points new_cpoint
+      )
+    | DbaIkAssign (DbaLhsVar(var, size, tags), expr, offset) ->
+      (
       )
     | _ -> ()
 
@@ -304,35 +382,45 @@ class explorer_c (trace_filename:string) concolic_policy (input_positions:(int *
 
   method private update_continuation_of_control_point_at_index idx inst addr_size =
     try
-      let continuation_is_updated = ref false in
       let current_cpoint = DynArray.get visited_control_points idx in
-      let current_continuations = current_cpoint.continuations in
-      let new_continuations =
-        List.map (fun cont =
-                   let input_pairs = List.combine cont.input_value current_inputs in
-                   let is_equal = not List.exists (fun elem -> fst elem <> snd elem) input_pairs in
-                   if (is_equal)
-                   then
-                     if Int64.to_int cont.next_location = 0
-                     then { next_location = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos addr_size));
-                            input_value = current_inputs }
-                     else
-                       (
-                         continuation_is_updated := true;
-                         cont
-                       )
-                   else cont) current_continuations
-      in
-      if !continuation_is_updated
-      then ()
-      else
+      match current_cpoint.explored with
+      | Uncoverable -> ()
+      | _ ->
         (
-          let new_cpoint =
-          if not List.exists (fun cont -> Int64.to_int cont.location = 0)
-          then { current_cpoint where continuations = new_continuations; explored = Covered }
-          else { current_cpoint where continuations = new_continuations }
+          let continuation_is_updated = ref false in
+          let current_continuations = current_cpoint.continuations in
+          let new_continuations =
+            List.map (
+              fun cont =
+                let input_pairs = List.combine cont.input_value current_inputs in
+                let is_equal = not List.exists (fun elem -> fst elem <> snd elem) input_pairs in
+                if (is_equal)
+                then
+                  if Int64.to_int cont.next_location = 0
+                  then
+                    let next_inst_address = Big_int.int64_of_big_int (fst (get_next_address inst.concrete_infos addr_size)) in
+                    { next_location = next_inst_address; input_value = current_inputs }
+                  else
+                    (
+                      continuation_is_updated := true;
+                      cont
+                    )
+                else cont)
+          current_continuations
           in
-          DynArray.set visited_control_points idx new_cpoint
+          if !continuation_is_updated
+          then ()
+          else
+            (
+              let new_cpoint =
+                if not List.exists (fun cont -> Int64.to_int cont.location = 0)
+                then { current_cpoint
+                         where continuations = new_continuations; explored = Covered }
+                else { current_cpoint
+                         where continuations = new_continuations }
+              in
+              DynArray.set visited_control_points idx new_cpoint
+            )
         )
     with
     | _ ->
